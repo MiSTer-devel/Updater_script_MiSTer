@@ -15,6 +15,7 @@
 
 # Copyright 2018 Alessandro "Locutus73" Miele
 
+# Version 1.2 - 2018.12.14 - Added support for distinct directories for computer cores, console cores, arcade cores and service cores; added an option for removing "Arcade-" prefix from arcade core names
 # Version 1.1 - 2018.12.11 - Added support for additional repositories (i.e. Scaler filters and Game Boy palettes), renamed some variables
 # Version 1.0 - 2018.12.11 - First commit
 
@@ -23,92 +24,104 @@
 #Change these self-explanatory variables in order to adjust destination paths, etc.
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
 BASE_PATH="/media/fat"
-CORES_PATH="$BASE_PATH"
-ARCADE_CORES_PATH="$BASE_PATH/_Arcade"
+declare -A CORE_CATEGORY_PATHS=(
+						["cores"]="$BASE_PATH/_Computer"
+						["console-cores"]="$BASE_PATH/_Console"
+						["arcade-cores"]="$BASE_PATH/_Arcade"
+						["service-cores"]="$BASE_PATH/_Utility"
+					 )	
 DELETE_OLD_FILES=true
+REMOVE_ARCADE_PREFIX=true
 #Comment next line if you don't want to download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
 ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters txt $BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes gbp $BASE_PATH/GameBoy/" )
 
-if [ ! -d $CORES_PATH ]
-then
-	mkdir -p $CORES_PATH
-fi
-if [ ! -d $ARCADE_CORES_PATH ]
-then
-	mkdir -p $ARCADE_CORES_PATH
-fi
 
-CORE_URLS=$MISTER_URL$'\n'$(curl -ksLf "$MISTER_URL/wiki"| awk '/user-content-cores/,/user-content-service-cores/' | grep -io 'https://github.com/[a-zA-Z0-9./_-]*_MiSTer')
+
+for CORE_DIR in "${CORE_CATEGORY_PATHS[@]}"; do
+	if [ ! -d $CORE_DIR ]
+	then
+		mkdir -p $CORE_DIR
+	fi
+done
+
+CORE_URLS=$MISTER_URL$'\n'$(curl -ksLf "$MISTER_URL/wiki"| awk '/user-content-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
+CORE_CATEGORY="-"
 
 for CORE_URL in $CORE_URLS; do
-	echo "Checking $CORE_URL"
-	RELEASES_URL=https://github.com$(curl -ksLf "$CORE_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
-	RELEASE_URLS=$(curl -ksLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}\w\?\(\.rbf\)\?')
-	
-	MAX_VERSION=""
-	MAX_RELEASE_URL=""
-	for RELEASE_URL in $RELEASE_URLS; do
-		CURRENT_VERSION=$(echo "$RELEASE_URL" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
-		if [[ "$CURRENT_VERSION" > "$MAX_VERSION" ]]
-		then
-			MAX_VERSION=$CURRENT_VERSION
-			MAX_RELEASE_URL=$RELEASE_URL
-		fi
-	done
-	
-	FILE_NAME=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g')
-	BASE_FILE_NAME=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}.*//g')
-	if (echo "$MAX_RELEASE_URL" | grep -q '/Arcade-')
+	if [[ $CORE_URL == https://* ]]
 	then
-		CURRENT_DIR=$ARCADE_CORES_PATH
-	else
-		CURRENT_DIR=$CORES_PATH
-	fi
-	if [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ]
-	then
-		CURRENT_DIR="$BASE_PATH"
-	fi
-	
-	CURRENT_LOCAL_VERSION=""
-	MAX_LOCAL_VERSION=""
-	for CURRENT_FILE in "$CURRENT_DIR/$BASE_FILE_NAME"*
-	do
-		if [ -f "$CURRENT_FILE" ]
-		then
-			if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?"
+		echo "Checking $CORE_URL"
+		RELEASES_URL=https://github.com$(curl -ksLf "$CORE_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
+		RELEASE_URLS=$(curl -ksLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}\w\?\(\.rbf\)\?')
+		
+		MAX_VERSION=""
+		MAX_RELEASE_URL=""
+		for RELEASE_URL in $RELEASE_URLS; do
+			CURRENT_VERSION=$(echo "$RELEASE_URL" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
+			if [[ "$CURRENT_VERSION" > "$MAX_VERSION" ]]
 			then
-				CURRENT_LOCAL_VERSION=$(echo "$CURRENT_FILE" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
-				if [[ "$CURRENT_LOCAL_VERSION" > "$MAX_LOCAL_VERSION" ]]
+				MAX_VERSION=$CURRENT_VERSION
+				MAX_RELEASE_URL=$RELEASE_URL
+			fi
+		done
+		
+		FILE_NAME=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g')
+		if [ "$CORE_CATEGORY" == "arcade-cores" ] && [ $REMOVE_ARCADE_PREFIX == true ]
+		then
+			FILE_NAME=$(echo "$FILE_NAME" | sed 's/Arcade-//gI')
+		fi
+		BASE_FILE_NAME=$(echo "$FILE_NAME" | sed 's/_[0-9]\{8\}.*//g')
+		
+		CURRENT_DIR="${CORE_CATEGORY_PATHS[$CORE_CATEGORY]}"
+		if [ "$CURRENT_DIR" == "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ]
+		then
+			CURRENT_DIR="$BASE_PATH"
+		fi
+		
+		CURRENT_LOCAL_VERSION=""
+		MAX_LOCAL_VERSION=""
+		for CURRENT_FILE in "$CURRENT_DIR/$BASE_FILE_NAME"*
+		do
+			if [ -f "$CURRENT_FILE" ]
+			then
+				if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?"
 				then
-					MAX_LOCAL_VERSION=$CURRENT_LOCAL_VERSION
-				fi
-				if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == true ]
-				then
-					echo "Deleting $CURRENT_FILE"
-					rm "$CURRENT_FILE"
+					CURRENT_LOCAL_VERSION=$(echo "$CURRENT_FILE" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
+					if [[ "$CURRENT_LOCAL_VERSION" > "$MAX_LOCAL_VERSION" ]]
+					then
+						MAX_LOCAL_VERSION=$CURRENT_LOCAL_VERSION
+					fi
+					if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == true ]
+					then
+						echo "Deleting $CURRENT_FILE"
+						rm "$CURRENT_FILE"
+					fi
 				fi
 			fi
-		fi
-	done
-	
-	if [[ "$MAX_VERSION" > "$MAX_LOCAL_VERSION" ]]
-	then
-		echo "Downloading https://github.com$MAX_RELEASE_URL?raw=true"
-		curl -kL "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
-		if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
+		done
+		
+		if [[ "$MAX_VERSION" > "$MAX_LOCAL_VERSION" ]]
 		then
-			DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
-			echo "Copying $DESTINATION_FILE"
-			rm "$CURRENT_DIR/$DESTINATION_FILE"
-			cp "$CURRENT_DIR/$FILE_NAME" "$CURRENT_DIR/$DESTINATION_FILE"
+			echo "Downloading https://github.com$MAX_RELEASE_URL?raw=true"
+			curl -kL "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
+			if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
+			then
+				DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
+				echo "Copying $DESTINATION_FILE"
+				rm "$CURRENT_DIR/$DESTINATION_FILE"
+				cp "$CURRENT_DIR/$FILE_NAME" "$CURRENT_DIR/$DESTINATION_FILE"
+			fi
+			sync
+		else
+			echo "Nothing to update"
 		fi
-		sync
+	
+		echo ""
 	else
-		echo "Nothing to update"
+		CORE_CATEGORY=$(echo "$CORE_URL" | sed 's/user-content-//g')
 	fi
-
-	echo ""
 done
+
 
 for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	PARAMS=($ADDITIONAL_REPOSITORY)
