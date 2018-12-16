@@ -15,6 +15,7 @@
 
 # Copyright 2018 Alessandro "Locutus73" Miele
 
+# Version 1.3.2 - 2018.12.16 - Deleting linux.img before updating the linux directory so that the extracted new file won't be overwritten.
 # Version 1.3.1 - 2018.12.16 - Disabled Linux updating as default behaviour.
 # Version 1.3 - 2018.12.16 - Added Kernel, Linux filesystem and bootloader updating functionality; added autoreboot option.
 # Version 1.2 - 2018.12.14 - Added support for distinct directories for computer cores, console cores, arcade cores and service cores; added an option for removing "Arcade-" prefix from arcade core names
@@ -151,7 +152,7 @@ for CORE_URL in $CORE_URLS; do
 					cd "$ORIGINAL_DIR"
 					rm "$TEMP_PATH/$MAX_RELEASE_URL"
 					tar -xJf "$TEMP_PATH/data.tar.xz" --strip-components=3 -C "$BASE_PATH" ./usr/bin/unrar-nonfree
-					rm "$TEMP_PATH/data.tar.xz"
+					rm "$TEMP_PATH/data.tar.xz" > /dev/null 2>&1
 				fi
 				if [ -f "$BASE_PATH/unrar-nonfree" ] && [ -f "$CURRENT_DIR/$FILE_NAME" ]
 				then
@@ -168,6 +169,7 @@ for CORE_URL in $CORE_URLS; do
 						echo "and copy the content of the files/linux/ directory in the linux directory of the SD"
 						echo "======================================================================================"
 						echo ""
+						rm $BASE_PATH/linux/linux.img > /dev/null 2>&1
 						$BASE_PATH/unrar-nonfree e -y "$CURRENT_DIR/$FILE_NAME" files/linux/* $BASE_PATH/linux
 						$BASE_PATH/linux/updateboot
 						REBOOT_NEEDED=true
