@@ -15,6 +15,7 @@
 
 # Copyright 2018 Alessandro "Locutus73" Miele
 
+# Version 1.3.3 - 2018.12.16 - Updating the bootloader before deleting linux.img, moved the Linux system update at the end of the script with an "atomic" approach (first extracting in a linux.update directory and then moving files).
 # Version 1.3.2 - 2018.12.16 - Deleting linux.img before updating the linux directory so that the extracted new file won't be overwritten.
 # Version 1.3.1 - 2018.12.16 - Disabled Linux updating as default behaviour.
 # Version 1.3 - 2018.12.16 - Added Kernel, Linux filesystem and bootloader updating functionality; added autoreboot option.
@@ -26,7 +27,7 @@
 
 #Change these self-explanatory variables in order to adjust destination paths, etc.
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
-#Uncomment/Comment next line if you want or don't want the Kernel, the Linux filesystem and the bootloader to be updated
+#EXPERIMENTAL: Uncomment/Comment next line if you want or don't want the Kernel, the Linux filesystem and the bootloader to be updated; do it at your own risk!
 #SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
 UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
 TEMP_PATH="/tmp"
@@ -39,8 +40,9 @@ declare -A CORE_CATEGORY_PATHS=(
 					 )	
 DELETE_OLD_FILES=true
 REMOVE_ARCADE_PREFIX=true
+SD_INSTALLER_PATH=""
 AUTOREBOOT=true
-REBOOT_PAUSE=5
+REBOOT_PAUSE=0
 #Comment next line if you don't want to download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
 ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters txt $BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes gbp $BASE_PATH/GameBoy" )
 
@@ -129,55 +131,7 @@ for CORE_URL in $CORE_URLS; do
 			fi
 			if echo "$CORE_URL" | grep -q "SD-Installer"
 			then
-				if [ ! -f "$BASE_PATH/unrar-nonfree" ]
-				then
-					UNRAR_DEB_URLS=$(curl -ksLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9./_+-]*_armhf\.deb\"' | sed 's/\"//g')
-					MAX_VERSION=""
-					MAX_RELEASE_URL=""
-					for RELEASE_URL in $UNRAR_DEB_URLS; do
-						CURRENT_VERSION=$(echo "$RELEASE_URL" | grep -o '_[a-zA-Z0-9.+-]*_' | sed 's/_//g')
-						if [[ "$CURRENT_VERSION" > "$MAX_VERSION" ]]
-						then
-							MAX_VERSION=$CURRENT_VERSION
-							MAX_RELEASE_URL=$RELEASE_URL
-						fi
-					done
-					echo "Downloading $UNRAR_DEBS_URL/$MAX_RELEASE_URL"
-					curl -kL "$UNRAR_DEBS_URL/$MAX_RELEASE_URL" -o "$TEMP_PATH/$MAX_RELEASE_URL"
-					echo "Extracting unrar-nonfree"
-					ORIGINAL_DIR=$(pwd)
-					cd "$TEMP_PATH"
-					rm data.tar.xz > /dev/null 2>&1
-					ar -x "$TEMP_PATH/$MAX_RELEASE_URL" data.tar.xz
-					cd "$ORIGINAL_DIR"
-					rm "$TEMP_PATH/$MAX_RELEASE_URL"
-					tar -xJf "$TEMP_PATH/data.tar.xz" --strip-components=3 -C "$BASE_PATH" ./usr/bin/unrar-nonfree
-					rm "$TEMP_PATH/data.tar.xz" > /dev/null 2>&1
-				fi
-				if [ -f "$BASE_PATH/unrar-nonfree" ] && [ -f "$CURRENT_DIR/$FILE_NAME" ]
-				then
-					sync
-					if $BASE_PATH/unrar-nonfree t "$CURRENT_DIR/$FILE_NAME"
-					then
-						echo ""
-						echo "======================================================================================"
-						echo "Hold your breath: updating the Kernel, the Linux filesystem, the bootloader and stuff."
-						echo "Stopping this will make your SD unbootable!"
-						echo ""
-						echo "If something goes wrong, please download the SD Installer from"
-						echo "$SD_INSTALLER_URL"
-						echo "and copy the content of the files/linux/ directory in the linux directory of the SD"
-						echo "======================================================================================"
-						echo ""
-						#rm $BASE_PATH/linux/linux.img > /dev/null 2>&1
-						#$BASE_PATH/unrar-nonfree e -y "$CURRENT_DIR/$FILE_NAME" files/linux/* $BASE_PATH/linux
-						#$BASE_PATH/linux/updateboot
-						REBOOT_NEEDED=true
-					else
-						echo "Downloaded installer RAR is broken, deleting $CURRENT_DIR/$FILE_NAME"
-						rm "$CURRENT_DIR/$FILE_NAME" > /dev/null 2>&1
-					fi					
-				fi
+				SD_INSTALLER_PATH="$CURRENT_DIR/$FILE_NAME"
 			fi
 			sync
 		else
@@ -214,6 +168,75 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 		echo ""
 	done
 done
+
+if [ "$SD_INSTALLER_PATH" != "" ]
+then
+	echo "Linux system must be updated"
+	if [ ! -f "$BASE_PATH/unrar-nonfree" ]
+	then
+		UNRAR_DEB_URLS=$(curl -ksLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9./_+-]*_armhf\.deb\"' | sed 's/\"//g')
+		MAX_VERSION=""
+		MAX_RELEASE_URL=""
+		for RELEASE_URL in $UNRAR_DEB_URLS; do
+			CURRENT_VERSION=$(echo "$RELEASE_URL" | grep -o '_[a-zA-Z0-9.+-]*_' | sed 's/_//g')
+			if [[ "$CURRENT_VERSION" > "$MAX_VERSION" ]]
+			then
+				MAX_VERSION=$CURRENT_VERSION
+				MAX_RELEASE_URL=$RELEASE_URL
+			fi
+		done
+		echo "Downloading $UNRAR_DEBS_URL/$MAX_RELEASE_URL"
+		curl -kL "$UNRAR_DEBS_URL/$MAX_RELEASE_URL" -o "$TEMP_PATH/$MAX_RELEASE_URL"
+		echo "Extracting unrar-nonfree"
+		ORIGINAL_DIR=$(pwd)
+		cd "$TEMP_PATH"
+		rm data.tar.xz > /dev/null 2>&1
+		ar -x "$TEMP_PATH/$MAX_RELEASE_URL" data.tar.xz
+		cd "$ORIGINAL_DIR"
+		rm "$TEMP_PATH/$MAX_RELEASE_URL"
+		tar -xJf "$TEMP_PATH/data.tar.xz" --strip-components=3 -C "$BASE_PATH" ./usr/bin/unrar-nonfree
+		rm "$TEMP_PATH/data.tar.xz" > /dev/null 2>&1
+	fi
+	if [ -f "$BASE_PATH/unrar-nonfree" ] && [ -f "$SD_INSTALLER_PATH" ]
+	then
+		sync
+		if $BASE_PATH/unrar-nonfree t "$SD_INSTALLER_PATH"
+		then
+			if [ -d $BASE_PATH/linux.update ]
+			then
+				rm -R "$BASE_PATH/linux.update" > /dev/null 2>&1
+			fi
+			mkdir "$BASE_PATH/linux.update"
+			if $BASE_PATH/unrar-nonfree e -y "$SD_INSTALLER_PATH" files/linux/* $BASE_PATH/linux.update
+			then
+				echo ""
+				echo "======================================================================================"
+				echo "Hold your breath: updating the Kernel, the Linux filesystem, the bootloader and stuff."
+				echo "Stopping this will make your SD unbootable!"
+				echo ""
+				echo "If something goes wrong, please download the SD Installer from"
+				echo "$SD_INSTALLER_URL"
+				echo "and copy the content of the files/linux/ directory in the linux directory of the SD."
+				echo "Reflash the bootloader with the SD Installer if needed."
+				echo "======================================================================================"
+				echo ""
+				sync
+				mv "$BASE_PATH/linux.update/"*boot* "$BASE_PATH/linux/"
+				sync
+				$BASE_PATH/linux/updateboot
+				rm "$BASE_PATH/linux/linux.img" > /dev/null 2>&1
+				sync
+				mv "$BASE_PATH/linux.update/"* "$BASE_PATH/linux/"
+			fi
+			rm -R "$BASE_PATH/linux.update" > /dev/null 2>&1
+			sync
+			REBOOT_NEEDED=true
+		else
+			echo "Downloaded installer RAR is broken, deleting $SD_INSTALLER_PATH"
+			rm "$SD_INSTALLER_PATH" > /dev/null 2>&1
+		fi
+	fi
+fi
 
 echo "Done!"
 if [ $REBOOT_NEEDED == true ]
