@@ -15,6 +15,7 @@
 
 # Copyright 2018 Alessandro "Locutus73" Miele
 
+# Version 1.3.1 - 2018.12.16 - Disabled Linux updating as default behaviour.
 # Version 1.3 - 2018.12.16 - Added Kernel, Linux filesystem and bootloader updating functionality; added autoreboot option.
 # Version 1.2 - 2018.12.14 - Added support for distinct directories for computer cores, console cores, arcade cores and service cores; added an option for removing "Arcade-" prefix from arcade core names
 # Version 1.1 - 2018.12.11 - Added support for additional repositories (i.e. Scaler filters and Game Boy palettes), renamed some variables
@@ -24,8 +25,8 @@
 
 #Change these self-explanatory variables in order to adjust destination paths, etc.
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
-#Comment next line if you don't want the Kernel, the Linux filesystem and the bootloader to be updated
-SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
+#Uncomment/Comment next line if you want or don't want the Kernel, the Linux filesystem and the bootloader to be updated
+#SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
 UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
 TEMP_PATH="/tmp"
 BASE_PATH="/media/fat"
