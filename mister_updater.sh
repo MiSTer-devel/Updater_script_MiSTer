@@ -169,9 +169,9 @@ for CORE_URL in $CORE_URLS; do
 						echo "and copy the content of the files/linux/ directory in the linux directory of the SD"
 						echo "======================================================================================"
 						echo ""
-						rm $BASE_PATH/linux/linux.img > /dev/null 2>&1
-						$BASE_PATH/unrar-nonfree e -y "$CURRENT_DIR/$FILE_NAME" files/linux/* $BASE_PATH/linux
-						$BASE_PATH/linux/updateboot
+						#rm $BASE_PATH/linux/linux.img > /dev/null 2>&1
+						#$BASE_PATH/unrar-nonfree e -y "$CURRENT_DIR/$FILE_NAME" files/linux/* $BASE_PATH/linux
+						#$BASE_PATH/linux/updateboot
 						REBOOT_NEEDED=true
 					else
 						echo "Downloaded installer RAR is broken, deleting $CURRENT_DIR/$FILE_NAME"
