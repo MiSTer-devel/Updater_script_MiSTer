@@ -15,6 +15,7 @@
 
 # Copyright 2018 Alessandro "Locutus73" Miele
 
+# Version 1.3.4 - 2018.12.22 - Shortened most of the script outputs in order to make them more friendly to the new MiSTer Script menu OSD; simplified missing directories creation (thanks frederic-mahe).
 # Version 1.3.3 - 2018.12.16 - Updating the bootloader before deleting linux.img, moved the Linux system update at the end of the script with an "atomic" approach (first extracting in a linux.update directory and then moving files).
 # Version 1.3.2 - 2018.12.16 - Deleting linux.img before updating the linux directory so that the extracted new file won't be overwritten.
 # Version 1.3.1 - 2018.12.16 - Disabled Linux updating as default behaviour.
@@ -46,7 +47,8 @@ REBOOT_PAUSE=0
 #Comment next line if you don't want to download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
 ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters txt $BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes gbp $BASE_PATH/GameBoy" )
 
-# create missing directories
+
+
 mkdir -p "${CORE_CATEGORY_PATHS[@]}"
 
 CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl -ksLf "$MISTER_URL/wiki"| awk '/user-content-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
@@ -56,7 +58,8 @@ REBOOT_NEEDED=false
 for CORE_URL in $CORE_URLS; do
 	if [[ $CORE_URL == https://* ]]
 	then
-		echo "Checking $CORE_URL"
+		echo "Checking $(echo $CORE_URL | sed 's/.*\///g' | sed 's/_MiSTer//gI')"
+		echo "URL: $CORE_URL" >&2
 		if echo "$CORE_URL" | grep -q "SD-Installer"
 		then
 			RELEASES_URL="$CORE_URL"
@@ -113,7 +116,8 @@ for CORE_URL in $CORE_URLS; do
 		
 		if [[ "$MAX_VERSION" > "$MAX_LOCAL_VERSION" ]]
 		then
-			echo "Downloading https://github.com$MAX_RELEASE_URL?raw=true"
+			echo "Downloading $FILE_NAME"
+			echo "URL: https://github.com$MAX_RELEASE_URL?raw=true" >&2
 			curl -kL "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
 			if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
 			then
@@ -142,7 +146,6 @@ for CORE_URL in $CORE_URLS; do
 	fi
 done
 
-
 for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	PARAMS=($ADDITIONAL_REPOSITORY)
 	CURRENT_DIR="${PARAMS[2]}"
@@ -151,12 +154,14 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 		mkdir -p "$CURRENT_DIR"
 	fi
 	ADDITIONAL_FILES_URL="${PARAMS[0]}"
-	echo "Checking $ADDITIONAL_FILES_URL"
+	echo "Checking $(echo $ADDITIONAL_FILES_URL | sed 's/.*\///g')"
+	echo "URL: $ADDITIONAL_FILES_URL" >&2
 	echo ""
 	ADDITIONAL_FILE_URLS=$(curl -ksLf "$ADDITIONAL_FILES_URL" | grep -o "/MiSTer-devel/[a-zA-Z0-9./_-]*\.${PARAMS[1]}")
 	for ADDITIONAL_FILE_URL in $ADDITIONAL_FILE_URLS; do
 		ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g')
-		echo "Downloading https://github.com$ADDITIONAL_FILE_URL?raw=true"
+		echo "Downloading $ADDITIONAL_FILE_NAME"
+		echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true" >&2
 		curl -kL "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
 		sync
 		echo ""
