@@ -46,14 +46,8 @@ REBOOT_PAUSE=0
 #Comment next line if you don't want to download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
 ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters txt $BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes gbp $BASE_PATH/GameBoy" )
 
-
-
-for CORE_DIR in "${CORE_CATEGORY_PATHS[@]}"; do
-	if [ ! -d $CORE_DIR ]
-	then
-		mkdir -p $CORE_DIR
-	fi
-done
+# create missing directories
+mkdir -p "${CORE_CATEGORY_PATHS[@]}"
 
 CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl -ksLf "$MISTER_URL/wiki"| awk '/user-content-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
 CORE_CATEGORY="-"
