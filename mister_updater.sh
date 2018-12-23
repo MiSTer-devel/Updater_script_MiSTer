@@ -15,6 +15,7 @@
 
 # Copyright 2018 Alessandro "Locutus73" Miele
 
+# Version 1.3.5 - 2018.12.22 - Solved Atari 800XL/5200 and SharpMZ issues; replaced "reboot" with "reboot now"; shortened some of the script outputs.
 # Version 1.3.4 - 2018.12.22 - Shortened most of the script outputs in order to make them more friendly to the new MiSTer Script menu OSD; simplified missing directories creation (thanks frederic-mahe).
 # Version 1.3.3 - 2018.12.16 - Updating the bootloader before deleting linux.img, moved the Linux system update at the end of the script with an "atomic" approach (first extracting in a linux.update directory and then moving files).
 # Version 1.3.2 - 2018.12.16 - Deleting linux.img before updating the linux directory so that the extracted new file won't be overwritten.
@@ -71,6 +72,19 @@ for CORE_URL in $CORE_URLS; do
 		MAX_VERSION=""
 		MAX_RELEASE_URL=""
 		for RELEASE_URL in $RELEASE_URLS; do
+			if echo "$RELEASE_URL" | grep -q "SharpMZ"
+			then
+				RELEASE_URL=$(echo "$RELEASE_URL"  | grep '\.rbf$')
+			fi			
+			if echo "$RELEASE_URL" | grep -q "Atari800"
+			then
+				if [ "$CORE_CATEGORY" == "cores" ]
+				then
+					RELEASE_URL=$(echo "$RELEASE_URL"  | grep '800_[0-9]\{8\}\w\?\.rbf$')
+				else
+					RELEASE_URL=$(echo "$RELEASE_URL"  | grep '5200_[0-9]\{8\}\w\?\.rbf$')
+				fi
+			fi			
 			CURRENT_VERSION=$(echo "$RELEASE_URL" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
 			if [[ "$CURRENT_VERSION" > "$MAX_VERSION" ]]
 			then
@@ -107,7 +121,7 @@ for CORE_URL in $CORE_URLS; do
 					fi
 					if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == true ]
 					then
-						echo "Deleting $CURRENT_FILE"
+						echo "Deleting $(echo $CURRENT_FILE | sed 's/.*\///g')"
 						rm "$CURRENT_FILE" > /dev/null 2>&1
 					fi
 				fi
@@ -244,7 +258,7 @@ then
 	then
 		echo "Rebooting in $REBOOT_PAUSE seconds"
 		sleep $REBOOT_PAUSE
-		reboot
+		reboot now
 	else
 		echo "You should reboot"
 	fi
