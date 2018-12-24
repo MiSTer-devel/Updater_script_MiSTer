@@ -15,6 +15,7 @@
 
 # Copyright 2018 Alessandro "Locutus73" Miele
 
+# Version 1.3.6 - 2018.12.24 - Improved local file name parsing so that the script deletes and updates NES_20181113.rbf, but not NES_20181113_NN.rbf.
 # Version 1.3.5 - 2018.12.22 - Solved Atari 800XL/5200 and SharpMZ issues; replaced "reboot" with "reboot now"; shortened some of the script outputs.
 # Version 1.3.4 - 2018.12.22 - Shortened most of the script outputs in order to make them more friendly to the new MiSTer Script menu OSD; simplified missing directories creation (thanks frederic-mahe).
 # Version 1.3.3 - 2018.12.16 - Updating the bootloader before deleting linux.img, moved the Linux system update at the end of the script with an "atomic" approach (first extracting in a linux.update directory and then moving files).
@@ -67,7 +68,7 @@ for CORE_URL in $CORE_URLS; do
 		else
 			RELEASES_URL=https://github.com$(curl -ksLf "$CORE_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
 		fi
-		RELEASE_URLS=$(curl -ksLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}\w\?\(\.rbf\|\.rar\)\?')
+		RELEASE_URLS=$(curl -ksLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?')
 		
 		MAX_VERSION=""
 		MAX_RELEASE_URL=""
@@ -80,9 +81,9 @@ for CORE_URL in $CORE_URLS; do
 			then
 				if [ "$CORE_CATEGORY" == "cores" ]
 				then
-					RELEASE_URL=$(echo "$RELEASE_URL"  | grep '800_[0-9]\{8\}\w\?\.rbf$')
+					RELEASE_URL=$(echo "$RELEASE_URL"  | grep '800_[0-9]\{8\}[a-zA-Z]\?\.rbf$')
 				else
-					RELEASE_URL=$(echo "$RELEASE_URL"  | grep '5200_[0-9]\{8\}\w\?\.rbf$')
+					RELEASE_URL=$(echo "$RELEASE_URL"  | grep '5200_[0-9]\{8\}[a-zA-Z]\?\.rbf$')
 				fi
 			fi			
 			CURRENT_VERSION=$(echo "$RELEASE_URL" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
@@ -112,7 +113,7 @@ for CORE_URL in $CORE_URLS; do
 		do
 			if [ -f "$CURRENT_FILE" ]
 			then
-				if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?"
+				if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?$"
 				then
 					CURRENT_LOCAL_VERSION=$(echo "$CURRENT_FILE" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
 					if [[ "$CURRENT_LOCAL_VERSION" > "$MAX_LOCAL_VERSION" ]]
