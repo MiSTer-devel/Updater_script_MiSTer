@@ -15,6 +15,7 @@
 
 # Copyright 2018 Alessandro "Locutus73" Miele
 
+# Version 1.4 - 2018.12.26 - Added DOWNLOAD_NEW_CORES option: true for downloading new cores in the standard directories as previous script releases, false for not downloading new cores at all, a string value, i.e. "NewCores", for downloading new cores in the "NewCores" subdirectory.
 # Version 1.3.6 - 2018.12.24 - Improved local file name parsing so that the script deletes and updates NES_20181113.rbf, but not NES_20181113_NN.rbf.
 # Version 1.3.5 - 2018.12.22 - Solved Atari 800XL/5200 and SharpMZ issues; replaced "reboot" with "reboot now"; shortened some of the script outputs.
 # Version 1.3.4 - 2018.12.22 - Shortened most of the script outputs in order to make them more friendly to the new MiSTer Script menu OSD; simplified missing directories creation (thanks frederic-mahe).
@@ -42,6 +43,7 @@ declare -A CORE_CATEGORY_PATHS=(
 						["service-cores"]="$BASE_PATH/_Utility"
 					 )	
 DELETE_OLD_FILES=true
+DOWNLOAD_NEW_CORES=true
 REMOVE_ARCADE_PREFIX=true
 SD_INSTALLER_PATH=""
 AUTOREBOOT=true
@@ -52,6 +54,15 @@ ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/m
 
 
 mkdir -p "${CORE_CATEGORY_PATHS[@]}"
+
+declare -A NEW_CORE_CATEGORY_PATHS
+if [ $DOWNLOAD_NEW_CORES != true ] && [ $DOWNLOAD_NEW_CORES != false ] && [ "$DOWNLOAD_NEW_CORES" != "" ]
+then
+	for idx in "${!CORE_CATEGORY_PATHS[@]}"; do
+    	NEW_CORE_CATEGORY_PATHS[$idx]=$(echo ${CORE_CATEGORY_PATHS[$idx]} | sed "s/$(echo $BASE_PATH | sed 's/\//\\\//g')/$(echo $BASE_PATH | sed 's/\//\\\//g')\/$DOWNLOAD_NEW_CORES/g")
+	done
+	mkdir -p "${NEW_CORE_CATEGORY_PATHS[@]}"
+fi
 
 CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl -ksLf "$MISTER_URL/wiki"| awk '/user-content-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
 CORE_CATEGORY="-"
@@ -101,52 +112,68 @@ for CORE_URL in $CORE_URLS; do
 		fi
 		BASE_FILE_NAME=$(echo "$FILE_NAME" | sed 's/_[0-9]\{8\}.*//g')
 		
-		CURRENT_DIR="${CORE_CATEGORY_PATHS[$CORE_CATEGORY]}"
-		if [ "$CURRENT_DIR" == "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ]
+		CURRENT_DIRS="${CORE_CATEGORY_PATHS[$CORE_CATEGORY]}"
+		if [ "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}" != "" ]
 		then
-			CURRENT_DIR="$BASE_PATH"
+			CURRENT_DIRS="$CURRENT_DIRS ${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}"
+		fi 
+		if [ "$CURRENT_DIRS" == "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ]
+		then
+			CURRENT_DIRS="$BASE_PATH"
 		fi
 		
 		CURRENT_LOCAL_VERSION=""
 		MAX_LOCAL_VERSION=""
-		for CURRENT_FILE in "$CURRENT_DIR/$BASE_FILE_NAME"*
+		for CURRENT_DIR in $CURRENT_DIRS
 		do
-			if [ -f "$CURRENT_FILE" ]
-			then
-				if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?$"
+			for CURRENT_FILE in "$CURRENT_DIR/$BASE_FILE_NAME"*
+			do
+				if [ -f "$CURRENT_FILE" ]
 				then
-					CURRENT_LOCAL_VERSION=$(echo "$CURRENT_FILE" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
-					if [[ "$CURRENT_LOCAL_VERSION" > "$MAX_LOCAL_VERSION" ]]
+					if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?$"
 					then
-						MAX_LOCAL_VERSION=$CURRENT_LOCAL_VERSION
-					fi
-					if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == true ]
-					then
-						echo "Deleting $(echo $CURRENT_FILE | sed 's/.*\///g')"
-						rm "$CURRENT_FILE" > /dev/null 2>&1
+						CURRENT_LOCAL_VERSION=$(echo "$CURRENT_FILE" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
+						if [[ "$CURRENT_LOCAL_VERSION" > "$MAX_LOCAL_VERSION" ]]
+						then
+							MAX_LOCAL_VERSION=$CURRENT_LOCAL_VERSION
+						fi
+						if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == true ]
+						then
+							echo "Deleting $(echo $CURRENT_FILE | sed 's/.*\///g')"
+							rm "$CURRENT_FILE" > /dev/null 2>&1
+						fi
 					fi
 				fi
+			done
+			if [ "$MAX_LOCAL_VERSION" != "" ]
+			then
+				break
 			fi
 		done
 		
 		if [[ "$MAX_VERSION" > "$MAX_LOCAL_VERSION" ]]
 		then
-			echo "Downloading $FILE_NAME"
-			echo "URL: https://github.com$MAX_RELEASE_URL?raw=true" >&2
-			curl -kL "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
-			if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
+			if [ $DOWNLOAD_NEW_CORES != false ] || [ "$MAX_LOCAL_VERSION" != "" ]
 			then
-				DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
-				echo "Copying $DESTINATION_FILE"
-				rm "$CURRENT_DIR/$DESTINATION_FILE" > /dev/null 2>&1
-				cp "$CURRENT_DIR/$FILE_NAME" "$CURRENT_DIR/$DESTINATION_FILE"
-				REBOOT_NEEDED=true
+				echo "Downloading $FILE_NAME"
+				echo "URL: https://github.com$MAX_RELEASE_URL?raw=true" >&2
+				curl -kL "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
+				if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
+				then
+					DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
+					echo "Copying $DESTINATION_FILE"
+					rm "$CURRENT_DIR/$DESTINATION_FILE" > /dev/null 2>&1
+					cp "$CURRENT_DIR/$FILE_NAME" "$CURRENT_DIR/$DESTINATION_FILE"
+					REBOOT_NEEDED=true
+				fi
+				if echo "$CORE_URL" | grep -q "SD-Installer"
+				then
+					SD_INSTALLER_PATH="$CURRENT_DIR/$FILE_NAME"
+				fi
+				sync
+			else
+				echo "New core: $FILE_NAME"
 			fi
-			if echo "$CORE_URL" | grep -q "SD-Installer"
-			then
-				SD_INSTALLER_PATH="$CURRENT_DIR/$FILE_NAME"
-			fi
-			sync
 		else
 			echo "Nothing to update"
 		fi
