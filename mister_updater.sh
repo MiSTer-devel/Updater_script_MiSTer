@@ -15,6 +15,7 @@
 
 # Copyright 2018 Alessandro "Locutus73" Miele
 
+# Version 1.5 - 2018.12.27 - Reorganized user options; improved DOWNLOAD_NEW_CORES option handling for paths with spaces; added ARCADE_HACKS_PATH parameter for defining a directory containing arcade hacks to be updated, each arcade hack is a subdirectory with the name starting like the rbf core with an underscore prefix (i.e. /media/fat/_Arcade/_Arcade Hacks/_BurgerTime - hack/).
 # Version 1.4 - 2018.12.26 - Added DOWNLOAD_NEW_CORES option: true for downloading new cores in the standard directories as previous script releases, false for not downloading new cores at all, a string value, i.e. "NewCores", for downloading new cores in the "NewCores" subdirectory.
 # Version 1.3.6 - 2018.12.24 - Improved local file name parsing so that the script deletes and updates NES_20181113.rbf, but not NES_20181113_NN.rbf.
 # Version 1.3.5 - 2018.12.22 - Solved Atari 800XL/5200 and SharpMZ issues; replaced "reboot" with "reboot now"; shortened some of the script outputs.
@@ -23,35 +24,42 @@
 # Version 1.3.2 - 2018.12.16 - Deleting linux.img before updating the linux directory so that the extracted new file won't be overwritten.
 # Version 1.3.1 - 2018.12.16 - Disabled Linux updating as default behaviour.
 # Version 1.3 - 2018.12.16 - Added Kernel, Linux filesystem and bootloader updating functionality; added autoreboot option.
-# Version 1.2 - 2018.12.14 - Added support for distinct directories for computer cores, console cores, arcade cores and service cores; added an option for removing "Arcade-" prefix from arcade core names
-# Version 1.1 - 2018.12.11 - Added support for additional repositories (i.e. Scaler filters and Game Boy palettes), renamed some variables
-# Version 1.0 - 2018.12.11 - First commit
+# Version 1.2 - 2018.12.14 - Added support for distinct directories for computer cores, console cores, arcade cores and service cores; added an option for removing "Arcade-" prefix from arcade core names.
+# Version 1.1 - 2018.12.11 - Added support for additional repositories (i.e. Scaler filters and Game Boy palettes), renamed some variables.
+# Version 1.0 - 2018.12.11 - First commit.
 
 
 
+#=========   USER OPTIONS   =========
 #Change these self-explanatory variables in order to adjust destination paths, etc.
-MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
-#EXPERIMENTAL: Uncomment/Comment next line if you want or don't want the Kernel, the Linux filesystem and the bootloader to be updated; do it at your own risk!
-#SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
-UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
-TEMP_PATH="/tmp"
 BASE_PATH="/media/fat"
 declare -A CORE_CATEGORY_PATHS=(
-						["cores"]="$BASE_PATH/_Computer"
-						["console-cores"]="$BASE_PATH/_Console"
-						["arcade-cores"]="$BASE_PATH/_Arcade"
-						["service-cores"]="$BASE_PATH/_Utility"
-					 )	
+	["cores"]="$BASE_PATH/_Computer"
+	["console-cores"]="$BASE_PATH/_Console"
+	["arcade-cores"]="$BASE_PATH/_Arcade"
+	["service-cores"]="$BASE_PATH/_Utility"
+)
+ARCADE_HACKS_PATH="${CORE_CATEGORY_PATHS["arcade-cores"]}/_Arcade Hacks"
 DELETE_OLD_FILES=true
 DOWNLOAD_NEW_CORES=true
 REMOVE_ARCADE_PREFIX=true
-SD_INSTALLER_PATH=""
-AUTOREBOOT=true
-REBOOT_PAUSE=0
+
+
+
+#========= ADVANCED OPTIONS =========
+MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
 #Comment next line if you don't want to download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
 ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters txt $BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes gbp $BASE_PATH/GameBoy" )
+UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
+#EXPERIMENTAL: Uncomment/Comment next line if you want or don't want the Kernel, the Linux filesystem and the bootloader to be updated; do it at your own risk!
+#SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
+AUTOREBOOT=true
+REBOOT_PAUSE=0
+TEMP_PATH="/tmp"
 
 
+
+#========= CODE STARTS HERE =========
 
 mkdir -p "${CORE_CATEGORY_PATHS[@]}"
 
@@ -59,13 +67,14 @@ declare -A NEW_CORE_CATEGORY_PATHS
 if [ $DOWNLOAD_NEW_CORES != true ] && [ $DOWNLOAD_NEW_CORES != false ] && [ "$DOWNLOAD_NEW_CORES" != "" ]
 then
 	for idx in "${!CORE_CATEGORY_PATHS[@]}"; do
-    	NEW_CORE_CATEGORY_PATHS[$idx]=$(echo ${CORE_CATEGORY_PATHS[$idx]} | sed "s/$(echo $BASE_PATH | sed 's/\//\\\//g')/$(echo $BASE_PATH | sed 's/\//\\\//g')\/$DOWNLOAD_NEW_CORES/g")
+		NEW_CORE_CATEGORY_PATHS[$idx]=$(echo ${CORE_CATEGORY_PATHS[$idx]} | sed "s/$(echo $BASE_PATH | sed 's/\//\\\//g')/$(echo $BASE_PATH | sed 's/\//\\\//g')\/$DOWNLOAD_NEW_CORES/g")
 	done
 	mkdir -p "${NEW_CORE_CATEGORY_PATHS[@]}"
 fi
 
 CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl -ksLf "$MISTER_URL/wiki"| awk '/user-content-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
 CORE_CATEGORY="-"
+SD_INSTALLER_PATH=""
 REBOOT_NEEDED=false
 
 for CORE_URL in $CORE_URLS; do
@@ -115,7 +124,7 @@ for CORE_URL in $CORE_URLS; do
 		CURRENT_DIRS="${CORE_CATEGORY_PATHS[$CORE_CATEGORY]}"
 		if [ "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}" != "" ]
 		then
-			CURRENT_DIRS="$CURRENT_DIRS ${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}"
+			CURRENT_DIRS=("$CURRENT_DIRS" "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}")
 		fi 
 		if [ "$CURRENT_DIRS" == "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ]
 		then
@@ -124,7 +133,7 @@ for CORE_URL in $CORE_URLS; do
 		
 		CURRENT_LOCAL_VERSION=""
 		MAX_LOCAL_VERSION=""
-		for CURRENT_DIR in $CURRENT_DIRS
+		for CURRENT_DIR in "${CURRENT_DIRS[@]}"
 		do
 			for CURRENT_FILE in "$CURRENT_DIR/$BASE_FILE_NAME"*
 			do
@@ -170,6 +179,18 @@ for CORE_URL in $CORE_URLS; do
 				then
 					SD_INSTALLER_PATH="$CURRENT_DIR/$FILE_NAME"
 				fi
+				if [ "$CORE_CATEGORY" == "arcade-cores" ]
+				then
+					for ARCADE_HACK_DIR in "$ARCADE_HACKS_PATH/_$BASE_FILE_NAME"*
+					do
+						if [ -d "$ARCADE_HACK_DIR" ]
+						then
+							echo "Updating $(echo $ARCADE_HACK_DIR | sed 's/.*\///g')"
+							rm "$ARCADE_HACK_DIR/"*.rbf  > /dev/null 2>&1
+							cp "$CURRENT_DIR/$FILE_NAME" "$ARCADE_HACK_DIR/"
+						fi
+					done
+				fi
 				sync
 			else
 				echo "New core: $FILE_NAME"
@@ -177,7 +198,7 @@ for CORE_URL in $CORE_URLS; do
 		else
 			echo "Nothing to update"
 		fi
-	
+		
 		echo ""
 	else
 		CORE_CATEGORY=$(echo "$CORE_URL" | sed 's/user-content-//g')
