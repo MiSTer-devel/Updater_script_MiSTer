@@ -15,6 +15,7 @@
 
 # Copyright 2018 Alessandro "Locutus73" Miele
 
+# Version 1.6 - 2018.12.29 - Added REPOSITORIES_FILTER option (i.e. "C64 Minimig NES SNES"); additional repositories files (Filters and GameBoy palettes) online dates and times are checked against local files before downloading; added Internet connection test at the beginning of the script; improved ARCADE_HACKS_PATH file purging; solved a bug with DOWNLOAD_NEW_CORES and paths with spaces; added comments to user options.
 # Version 1.5 - 2018.12.27 - Reorganized user options; improved DOWNLOAD_NEW_CORES option handling for paths with spaces; added ARCADE_HACKS_PATH parameter for defining a directory containing arcade hacks to be updated, each arcade hack is a subdirectory with the name starting like the rbf core with an underscore prefix (i.e. /media/fat/_Arcade/_Arcade Hacks/_BurgerTime - hack/).
 # Version 1.4 - 2018.12.26 - Added DOWNLOAD_NEW_CORES option: true for downloading new cores in the standard directories as previous script releases, false for not downloading new cores at all, a string value, i.e. "NewCores", for downloading new cores in the "NewCores" subdirectory.
 # Version 1.3.6 - 2018.12.24 - Improved local file name parsing so that the script deletes and updates NES_20181113.rbf, but not NES_20181113_NN.rbf.
@@ -31,18 +32,39 @@
 
 
 #=========   USER OPTIONS   =========
-#Change these self-explanatory variables in order to adjust destination paths, etc.
+#Base directory for all script’s tasks, "/media/fat" for SD root, "/media/usb0" for USB drive root.
 BASE_PATH="/media/fat"
+
+#Directories where all cores categories will be downloaded.
 declare -A CORE_CATEGORY_PATHS=(
 	["cores"]="$BASE_PATH/_Computer"
 	["console-cores"]="$BASE_PATH/_Console"
 	["arcade-cores"]="$BASE_PATH/_Arcade"
 	["service-cores"]="$BASE_PATH/_Utility"
 )
+
+#Optional directory containing arcade hacks to be updated,
+#each arcade hack is a subdirectory with the name starting like the rbf core with an underscore prefix,
+#i.e. "/media/fat/_Arcade/_Arcade Hacks/_BurgerTime - hack/".
 ARCADE_HACKS_PATH="${CORE_CATEGORY_PATHS["arcade-cores"]}/_Arcade Hacks"
+
+#Specifies if old files (cores, main MiSTer executable, menu, SD-Installer, etc.) will be deleted before an update.
 DELETE_OLD_FILES=true
+
+#Specifies what to do with new online cores not installed locally:
+#true for downloading new cores in the standard directories (see CORE_CATEGORY_PATHS),
+#false for not downloading new cores at all,
+#a string value, i.e. "NewCores", for downloading new cores in the "NewCores" subdirectory.
 DOWNLOAD_NEW_CORES=true
+
+#Specifies if the “Arcade-“ prefix will be removed in local arcade cores.
 REMOVE_ARCADE_PREFIX=true
+
+#A space separated list of filters for the online repositories;
+#each filter can be part of the repository name or a whole core category,
+#i.e. “C64 Minimig NES SNES arcade-cores”;
+#if you use this option probably you want DOWNLOAD_NEW_CORES=true.
+REPOSITORIES_FILTER=""
 
 
 
@@ -61,10 +83,16 @@ TEMP_PATH="/tmp"
 
 #========= CODE STARTS HERE =========
 
+if ! ping -q -w1 -c1 google.com &>/dev/null
+then
+	echo "No Interent connection"
+	exit 1
+fi
+
 mkdir -p "${CORE_CATEGORY_PATHS[@]}"
 
 declare -A NEW_CORE_CATEGORY_PATHS
-if [ $DOWNLOAD_NEW_CORES != true ] && [ $DOWNLOAD_NEW_CORES != false ] && [ "$DOWNLOAD_NEW_CORES" != "" ]
+if [ "$DOWNLOAD_NEW_CORES" != true ] && [ "$DOWNLOAD_NEW_CORES" != false ] && [ "$DOWNLOAD_NEW_CORES" != "" ]
 then
 	for idx in "${!CORE_CATEGORY_PATHS[@]}"; do
 		NEW_CORE_CATEGORY_PATHS[$idx]=$(echo ${CORE_CATEGORY_PATHS[$idx]} | sed "s/$(echo $BASE_PATH | sed 's/\//\\\//g')/$(echo $BASE_PATH | sed 's/\//\\\//g')\/$DOWNLOAD_NEW_CORES/g")
@@ -76,130 +104,148 @@ CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl -ksLf "$MISTER_URL/wiki"|
 CORE_CATEGORY="-"
 SD_INSTALLER_PATH=""
 REBOOT_NEEDED=false
+CORE_CATEGORIES_FILTER=""
+if [ "$REPOSITORIES_FILTER" != "" ]
+then
+	CORE_CATEGORIES_FILTER="^\($( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/\\)\\|\\(/g' )\)$"
+	REPOSITORIES_FILTER="\(Main_MiSTer\)\|\(Menu_MiSTer\)\|\(SD-Installer-Win64_MiSTer\)\|\($( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/\\)\\|\\([\/_-]/g' )\)"
+fi
 
 for CORE_URL in $CORE_URLS; do
 	if [[ $CORE_URL == https://* ]]
 	then
-		echo "Checking $(echo $CORE_URL | sed 's/.*\///g' | sed 's/_MiSTer//gI')"
-		echo "URL: $CORE_URL" >&2
-		if echo "$CORE_URL" | grep -q "SD-Installer"
+		if [ "$REPOSITORIES_FILTER" == "" ] || { echo "$CORE_URL" | grep -qi "$REPOSITORIES_FILTER";  } || { echo "$CORE_CATEGORY" | grep -qi "$CORE_CATEGORIES_FILTER";  }
 		then
-			RELEASES_URL="$CORE_URL"
-		else
-			RELEASES_URL=https://github.com$(curl -ksLf "$CORE_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
-		fi
-		RELEASE_URLS=$(curl -ksLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?')
-		
-		MAX_VERSION=""
-		MAX_RELEASE_URL=""
-		for RELEASE_URL in $RELEASE_URLS; do
-			if echo "$RELEASE_URL" | grep -q "SharpMZ"
+			echo "Checking $(echo $CORE_URL | sed 's/.*\///g' | sed 's/_MiSTer//gI')"
+			echo "URL: $CORE_URL" >&2
+			if echo "$CORE_URL" | grep -q "SD-Installer"
 			then
-				RELEASE_URL=$(echo "$RELEASE_URL"  | grep '\.rbf$')
-			fi			
-			if echo "$RELEASE_URL" | grep -q "Atari800"
-			then
-				if [ "$CORE_CATEGORY" == "cores" ]
-				then
-					RELEASE_URL=$(echo "$RELEASE_URL"  | grep '800_[0-9]\{8\}[a-zA-Z]\?\.rbf$')
-				else
-					RELEASE_URL=$(echo "$RELEASE_URL"  | grep '5200_[0-9]\{8\}[a-zA-Z]\?\.rbf$')
-				fi
-			fi			
-			CURRENT_VERSION=$(echo "$RELEASE_URL" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
-			if [[ "$CURRENT_VERSION" > "$MAX_VERSION" ]]
-			then
-				MAX_VERSION=$CURRENT_VERSION
-				MAX_RELEASE_URL=$RELEASE_URL
+				RELEASES_URL="$CORE_URL"
+			else
+				RELEASES_URL=https://github.com$(curl -ksLf "$CORE_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
 			fi
-		done
-		
-		FILE_NAME=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g')
-		if [ "$CORE_CATEGORY" == "arcade-cores" ] && [ $REMOVE_ARCADE_PREFIX == true ]
-		then
-			FILE_NAME=$(echo "$FILE_NAME" | sed 's/Arcade-//gI')
-		fi
-		BASE_FILE_NAME=$(echo "$FILE_NAME" | sed 's/_[0-9]\{8\}.*//g')
-		
-		CURRENT_DIRS="${CORE_CATEGORY_PATHS[$CORE_CATEGORY]}"
-		if [ "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}" != "" ]
-		then
-			CURRENT_DIRS=("$CURRENT_DIRS" "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}")
-		fi 
-		if [ "$CURRENT_DIRS" == "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ]
-		then
-			CURRENT_DIRS="$BASE_PATH"
-		fi
-		
-		CURRENT_LOCAL_VERSION=""
-		MAX_LOCAL_VERSION=""
-		for CURRENT_DIR in "${CURRENT_DIRS[@]}"
-		do
-			for CURRENT_FILE in "$CURRENT_DIR/$BASE_FILE_NAME"*
-			do
-				if [ -f "$CURRENT_FILE" ]
+			RELEASE_URLS=$(curl -ksLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?')
+			
+			MAX_VERSION=""
+			MAX_RELEASE_URL=""
+			for RELEASE_URL in $RELEASE_URLS; do
+				if echo "$RELEASE_URL" | grep -q "SharpMZ"
 				then
-					if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?$"
+					RELEASE_URL=$(echo "$RELEASE_URL"  | grep '\.rbf$')
+				fi			
+				if echo "$RELEASE_URL" | grep -q "Atari800"
+				then
+					if [ "$CORE_CATEGORY" == "cores" ]
 					then
-						CURRENT_LOCAL_VERSION=$(echo "$CURRENT_FILE" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
-						if [[ "$CURRENT_LOCAL_VERSION" > "$MAX_LOCAL_VERSION" ]]
-						then
-							MAX_LOCAL_VERSION=$CURRENT_LOCAL_VERSION
-						fi
-						if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == true ]
-						then
-							echo "Deleting $(echo $CURRENT_FILE | sed 's/.*\///g')"
-							rm "$CURRENT_FILE" > /dev/null 2>&1
-						fi
+						RELEASE_URL=$(echo "$RELEASE_URL"  | grep '800_[0-9]\{8\}[a-zA-Z]\?\.rbf$')
+					else
+						RELEASE_URL=$(echo "$RELEASE_URL"  | grep '5200_[0-9]\{8\}[a-zA-Z]\?\.rbf$')
 					fi
+				fi			
+				CURRENT_VERSION=$(echo "$RELEASE_URL" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
+				if [[ "$CURRENT_VERSION" > "$MAX_VERSION" ]]
+				then
+					MAX_VERSION=$CURRENT_VERSION
+					MAX_RELEASE_URL=$RELEASE_URL
 				fi
 			done
-			if [ "$MAX_LOCAL_VERSION" != "" ]
+			
+			FILE_NAME=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g')
+			if [ "$CORE_CATEGORY" == "arcade-cores" ] && [ $REMOVE_ARCADE_PREFIX == true ]
 			then
-				break
+				FILE_NAME=$(echo "$FILE_NAME" | sed 's/Arcade-//gI')
 			fi
-		done
-		
-		if [[ "$MAX_VERSION" > "$MAX_LOCAL_VERSION" ]]
-		then
-			if [ $DOWNLOAD_NEW_CORES != false ] || [ "$MAX_LOCAL_VERSION" != "" ]
+			BASE_FILE_NAME=$(echo "$FILE_NAME" | sed 's/_[0-9]\{8\}.*//g')
+			
+			CURRENT_DIRS="${CORE_CATEGORY_PATHS[$CORE_CATEGORY]}"
+			if [ "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}" != "" ]
 			then
-				echo "Downloading $FILE_NAME"
-				echo "URL: https://github.com$MAX_RELEASE_URL?raw=true" >&2
-				curl -kL "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
-				if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
-				then
-					DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
-					echo "Copying $DESTINATION_FILE"
-					rm "$CURRENT_DIR/$DESTINATION_FILE" > /dev/null 2>&1
-					cp "$CURRENT_DIR/$FILE_NAME" "$CURRENT_DIR/$DESTINATION_FILE"
-					REBOOT_NEEDED=true
-				fi
-				if echo "$CORE_URL" | grep -q "SD-Installer"
-				then
-					SD_INSTALLER_PATH="$CURRENT_DIR/$FILE_NAME"
-				fi
-				if [ "$CORE_CATEGORY" == "arcade-cores" ]
-				then
-					for ARCADE_HACK_DIR in "$ARCADE_HACKS_PATH/_$BASE_FILE_NAME"*
-					do
-						if [ -d "$ARCADE_HACK_DIR" ]
+				CURRENT_DIRS=("$CURRENT_DIRS" "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}")
+			fi 
+			if [ "$CURRENT_DIRS" == "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ]
+			then
+				CURRENT_DIRS="$BASE_PATH"
+			fi
+			
+			CURRENT_LOCAL_VERSION=""
+			MAX_LOCAL_VERSION=""
+			for CURRENT_DIR in "${CURRENT_DIRS[@]}"
+			do
+				for CURRENT_FILE in "$CURRENT_DIR/$BASE_FILE_NAME"*
+				do
+					if [ -f "$CURRENT_FILE" ]
+					then
+						if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?$"
 						then
-							echo "Updating $(echo $ARCADE_HACK_DIR | sed 's/.*\///g')"
-							rm "$ARCADE_HACK_DIR/"*.rbf  > /dev/null 2>&1
-							cp "$CURRENT_DIR/$FILE_NAME" "$ARCADE_HACK_DIR/"
+							CURRENT_LOCAL_VERSION=$(echo "$CURRENT_FILE" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
+							if [[ "$CURRENT_LOCAL_VERSION" > "$MAX_LOCAL_VERSION" ]]
+							then
+								MAX_LOCAL_VERSION=$CURRENT_LOCAL_VERSION
+							fi
+							if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == true ]
+							then
+								echo "Deleting $(echo $CURRENT_FILE | sed 's/.*\///g')"
+								rm "$CURRENT_FILE" > /dev/null 2>&1
+							fi
 						fi
-					done
+					fi
+				done
+				if [ "$MAX_LOCAL_VERSION" != "" ]
+				then
+					break
 				fi
-				sync
+			done
+			
+			if [[ "$MAX_VERSION" > "$MAX_LOCAL_VERSION" ]]
+			then
+				if [ "$DOWNLOAD_NEW_CORES" != false ] || [ "$MAX_LOCAL_VERSION" != "" ]
+				then
+					echo "Downloading $FILE_NAME"
+					echo "URL: https://github.com$MAX_RELEASE_URL?raw=true" >&2
+					curl -kL "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
+					if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
+					then
+						DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
+						echo "Copying $DESTINATION_FILE"
+						rm "$CURRENT_DIR/$DESTINATION_FILE" > /dev/null 2>&1
+						cp "$CURRENT_DIR/$FILE_NAME" "$CURRENT_DIR/$DESTINATION_FILE"
+						REBOOT_NEEDED=true
+					fi
+					if echo "$CORE_URL" | grep -q "SD-Installer"
+					then
+						SD_INSTALLER_PATH="$CURRENT_DIR/$FILE_NAME"
+					fi
+					if [ "$CORE_CATEGORY" == "arcade-cores" ]
+					then
+						for ARCADE_HACK_DIR in "$ARCADE_HACKS_PATH/_$BASE_FILE_NAME"*
+						do
+							if [ -d "$ARCADE_HACK_DIR" ]
+							then
+								echo "Updating $(echo $ARCADE_HACK_DIR | sed 's/.*\///g')"
+								if [ $DELETE_OLD_FILES == true ]
+								then
+									for ARCADE_HACK_CORE in "$ARCADE_HACK_DIR/"*.rbf
+									do
+										if [ -f "$ARCADE_HACK_CORE" ] && { echo "$ARCADE_HACK_CORE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\.rbf$"; }
+										then
+											rm "$ARCADE_HACK_CORE"  > /dev/null 2>&1
+										fi
+									done
+								fi
+								cp "$CURRENT_DIR/$FILE_NAME" "$ARCADE_HACK_DIR/"
+							fi
+						done
+					fi
+					sync
+				else
+					echo "New core: $FILE_NAME"
+				fi
 			else
-				echo "New core: $FILE_NAME"
+				echo "Nothing to update"
 			fi
-		else
-			echo "Nothing to update"
+			
+			echo ""
 		fi
-		
-		echo ""
 	else
 		CORE_CATEGORY=$(echo "$CORE_URL" | sed 's/user-content-//g')
 		if [ "$CORE_CATEGORY" == "" ]
@@ -220,14 +266,29 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	echo "Checking $(echo $ADDITIONAL_FILES_URL | sed 's/.*\///g')"
 	echo "URL: $ADDITIONAL_FILES_URL" >&2
 	echo ""
-	ADDITIONAL_FILE_URLS=$(curl -ksLf "$ADDITIONAL_FILES_URL" | grep -o "/MiSTer-devel/[a-zA-Z0-9./_-]*\.${PARAMS[1]}")
+	ADDITIONAL_FILE_URLS=$(curl -ksLf "$ADDITIONAL_FILES_URL")
+	ADDITIONAL_FILE_DATETIMES=$(echo "$ADDITIONAL_FILE_URLS" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
+	ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
+	ADDITIONAL_FILE_URLS=$(echo "$ADDITIONAL_FILE_URLS" | grep -o "/MiSTer-devel/[a-zA-Z0-9./_-]*\.${PARAMS[1]}")
+	ADDITIONAL_FILE_INDEX=0
 	for ADDITIONAL_FILE_URL in $ADDITIONAL_FILE_URLS; do
+		ADDITIONAL_FILE_INDEX=$((ADDITIONAL_FILE_INDEX+1))
 		ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g')
-		echo "Downloading $ADDITIONAL_FILE_NAME"
-		echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true" >&2
-		curl -kL "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
-		sync
-		echo ""
+		ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_FILE_DATETIMES[$ADDITIONAL_FILE_INDEX]}
+		if [ -f "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" ]
+		then
+			ADDITIONAL_LOCAL_FILE_DATETIME=$(date -d "$(stat -c %y "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" 2>/dev/null)" -u +"%Y-%m-%dT%H:%M:%SZ")
+		else
+			ADDITIONAL_LOCAL_FILE_DATETIME=""
+		fi
+		if [ "$ADDITIONAL_LOCAL_FILE_DATETIME" == "" ] || [[ "$ADDITIONAL_ONLINE_FILE_DATETIME" > "$ADDITIONAL_LOCAL_FILE_DATETIME" ]]
+		then
+			echo "Downloading $ADDITIONAL_FILE_NAME"
+			echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true" >&2
+			curl -kL "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
+			sync
+			echo ""
+		fi
 	done
 done
 
