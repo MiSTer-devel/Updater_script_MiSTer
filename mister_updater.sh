@@ -15,6 +15,10 @@
 
 # Copyright 2018 Alessandro "Locutus73" Miele
 
+# You can download the latest version of this script from:
+# https://github.com/MiSTer-devel/Updater_script_MiSTer
+
+# Version 1.6.1 - 2018.12.30 - Improved date-time parsing for additional repositories; main MiSTer executable, menu.rbf and Linux system are always updated in /media/fat even if BASE_PATH is configured for another directory.
 # Version 1.6 - 2018.12.29 - Added REPOSITORIES_FILTER option (i.e. "C64 Minimig NES SNES"); additional repositories files (Filters and GameBoy palettes) online dates and times are checked against local files before downloading; added Internet connection test at the beginning of the script; improved ARCADE_HACKS_PATH file purging; solved a bug with DOWNLOAD_NEW_CORES and paths with spaces; added comments to user options.
 # Version 1.5 - 2018.12.27 - Reorganized user options; improved DOWNLOAD_NEW_CORES option handling for paths with spaces; added ARCADE_HACKS_PATH parameter for defining a directory containing arcade hacks to be updated, each arcade hack is a subdirectory with the name starting like the rbf core with an underscore prefix (i.e. /media/fat/_Arcade/_Arcade Hacks/_BurgerTime - hack/).
 # Version 1.4 - 2018.12.26 - Added DOWNLOAD_NEW_CORES option: true for downloading new cores in the standard directories as previous script releases, false for not downloading new cores at all, a string value, i.e. "NewCores", for downloading new cores in the "NewCores" subdirectory.
@@ -162,9 +166,13 @@ for CORE_URL in $CORE_URLS; do
 			then
 				CURRENT_DIRS=("$CURRENT_DIRS" "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}")
 			fi 
-			if [ "$CURRENT_DIRS" == "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ]
+			if [ "$CURRENT_DIRS" == "" ]
 			then
 				CURRENT_DIRS="$BASE_PATH"
+			fi
+			if [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -q "SD-Installer"; }
+			then
+				CURRENT_DIRS="/media/fat"
 			fi
 			
 			CURRENT_LOCAL_VERSION=""
@@ -266,36 +274,41 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	echo "Checking $(echo $ADDITIONAL_FILES_URL | sed 's/.*\///g')"
 	echo "URL: $ADDITIONAL_FILES_URL" >&2
 	echo ""
-	ADDITIONAL_FILE_URLS=$(curl -ksLf "$ADDITIONAL_FILES_URL")
-	ADDITIONAL_FILE_DATETIMES=$(echo "$ADDITIONAL_FILE_URLS" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
+	CONTENT_TDS=$(curl -ksLf "$ADDITIONAL_FILES_URL")
+	ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
 	ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
-	ADDITIONAL_FILE_URLS=$(echo "$ADDITIONAL_FILE_URLS" | grep -o "/MiSTer-devel/[a-zA-Z0-9./_-]*\.${PARAMS[1]}")
-	ADDITIONAL_FILE_INDEX=0
-	for ADDITIONAL_FILE_URL in $ADDITIONAL_FILE_URLS; do
-		ADDITIONAL_FILE_INDEX=$((ADDITIONAL_FILE_INDEX+1))
-		ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g')
-		ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_FILE_DATETIMES[$ADDITIONAL_FILE_INDEX]}
-		if [ -f "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" ]
+	#CONTENT_TDS=$(echo "$CONTENT_TDS" | tr '\n' ' ' | egrep -o '<td class="content".*?<\/td>' | sed 's/ \{1,\}/+/g' | tr '\n' ' ')
+	CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content"/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
+	CONTENT_TD_INDEX=0
+	for CONTENT_TD in $CONTENT_TDS; do
+		ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "/MiSTer-devel/[a-zA-Z0-9./_-]*\.${PARAMS[1]}")
+		if [ "$ADDITIONAL_FILE_URL" != "" ]
 		then
-			ADDITIONAL_LOCAL_FILE_DATETIME=$(date -d "$(stat -c %y "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" 2>/dev/null)" -u +"%Y-%m-%dT%H:%M:%SZ")
-		else
-			ADDITIONAL_LOCAL_FILE_DATETIME=""
+			ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g')
+			ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_FILE_DATETIMES[$CONTENT_TD_INDEX]}
+			if [ -f "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" ]
+			then
+				ADDITIONAL_LOCAL_FILE_DATETIME=$(date -d "$(stat -c %y "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" 2>/dev/null)" -u +"%Y-%m-%dT%H:%M:%SZ")
+			else
+				ADDITIONAL_LOCAL_FILE_DATETIME=""
+			fi
+			if [ "$ADDITIONAL_LOCAL_FILE_DATETIME" == "" ] || [[ "$ADDITIONAL_ONLINE_FILE_DATETIME" > "$ADDITIONAL_LOCAL_FILE_DATETIME" ]]
+			then
+				echo "Downloading $ADDITIONAL_FILE_NAME"
+				echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true" >&2
+				curl -kL "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
+				sync
+				echo ""
+			fi
 		fi
-		if [ "$ADDITIONAL_LOCAL_FILE_DATETIME" == "" ] || [[ "$ADDITIONAL_ONLINE_FILE_DATETIME" > "$ADDITIONAL_LOCAL_FILE_DATETIME" ]]
-		then
-			echo "Downloading $ADDITIONAL_FILE_NAME"
-			echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true" >&2
-			curl -kL "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
-			sync
-			echo ""
-		fi
+		CONTENT_TD_INDEX=$((CONTENT_TD_INDEX+1))
 	done
 done
 
 if [ "$SD_INSTALLER_PATH" != "" ]
 then
 	echo "Linux system must be updated"
-	if [ ! -f "$BASE_PATH/unrar-nonfree" ]
+	if [ ! -f "/media/fat/unrar-nonfree" ]
 	then
 		UNRAR_DEB_URLS=$(curl -ksLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9./_+-]*_armhf\.deb\"' | sed 's/\"//g')
 		MAX_VERSION=""
@@ -317,20 +330,20 @@ then
 		ar -x "$TEMP_PATH/$MAX_RELEASE_URL" data.tar.xz
 		cd "$ORIGINAL_DIR"
 		rm "$TEMP_PATH/$MAX_RELEASE_URL"
-		tar -xJf "$TEMP_PATH/data.tar.xz" --strip-components=3 -C "$BASE_PATH" ./usr/bin/unrar-nonfree
+		tar -xJf "$TEMP_PATH/data.tar.xz" --strip-components=3 -C "/media/fat" ./usr/bin/unrar-nonfree
 		rm "$TEMP_PATH/data.tar.xz" > /dev/null 2>&1
 	fi
-	if [ -f "$BASE_PATH/unrar-nonfree" ] && [ -f "$SD_INSTALLER_PATH" ]
+	if [ -f "/media/fat/unrar-nonfree" ] && [ -f "$SD_INSTALLER_PATH" ]
 	then
 		sync
-		if $BASE_PATH/unrar-nonfree t "$SD_INSTALLER_PATH"
+		if /media/fat/unrar-nonfree t "$SD_INSTALLER_PATH"
 		then
-			if [ -d $BASE_PATH/linux.update ]
+			if [ -d /media/fat/linux.update ]
 			then
-				rm -R "$BASE_PATH/linux.update" > /dev/null 2>&1
+				rm -R "/media/fat/linux.update" > /dev/null 2>&1
 			fi
-			mkdir "$BASE_PATH/linux.update"
-			if $BASE_PATH/unrar-nonfree e -y "$SD_INSTALLER_PATH" files/linux/* $BASE_PATH/linux.update
+			mkdir "/media/fat/linux.update"
+			if /media/fat/unrar-nonfree e -y "$SD_INSTALLER_PATH" files/linux/* /media/fat/linux.update
 			then
 				echo ""
 				echo "======================================================================================"
@@ -344,14 +357,14 @@ then
 				echo "======================================================================================"
 				echo ""
 				sync
-				mv "$BASE_PATH/linux.update/"*boot* "$BASE_PATH/linux/"
+				mv "/media/fat/linux.update/"*boot* "/media/fat/linux/"
 				sync
-				$BASE_PATH/linux/updateboot
-				rm "$BASE_PATH/linux/linux.img" > /dev/null 2>&1
+				/media/fat/linux/updateboot
+				rm "/media/fat/linux/linux.img" > /dev/null 2>&1
 				sync
-				mv "$BASE_PATH/linux.update/"* "$BASE_PATH/linux/"
+				mv "/media/fat/linux.update/"* "/media/fat/linux/"
 			fi
-			rm -R "$BASE_PATH/linux.update" > /dev/null 2>&1
+			rm -R "/media/fat/linux.update" > /dev/null 2>&1
 			sync
 			REBOOT_NEEDED=true
 		else
