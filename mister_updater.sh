@@ -13,11 +13,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright 2018 Alessandro "Locutus73" Miele
+# Copyright 2018-2019 Alessandro "Locutus73" Miele
 
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 1.6.2 - 2019.01.02 - Solved a bug that prevented updating MiSTer main executable, menu.rbf and Linux system when DOWNLOAD_NEW_CORES="false" and timestamped files were missing; improved REPOSITORIES_FILTER comments; code clean up by frederic-mahe (thank you very much).
 # Version 1.6.1 - 2018.12.30 - Improved date-time parsing for additional repositories; main MiSTer executable, menu.rbf and Linux system are always updated in /media/fat even if BASE_PATH is configured for another directory.
 # Version 1.6 - 2018.12.29 - Added REPOSITORIES_FILTER option (i.e. "C64 Minimig NES SNES"); additional repositories files (Filters and GameBoy palettes) online dates and times are checked against local files before downloading; added Internet connection test at the beginning of the script; improved ARCADE_HACKS_PATH file purging; solved a bug with DOWNLOAD_NEW_CORES and paths with spaces; added comments to user options.
 # Version 1.5 - 2018.12.27 - Reorganized user options; improved DOWNLOAD_NEW_CORES option handling for paths with spaces; added ARCADE_HACKS_PATH parameter for defining a directory containing arcade hacks to be updated, each arcade hack is a subdirectory with the name starting like the rbf core with an underscore prefix (i.e. /media/fat/_Arcade/_Arcade Hacks/_BurgerTime - hack/).
@@ -66,7 +67,9 @@ REMOVE_ARCADE_PREFIX="true"
 
 #A space separated list of filters for the online repositories;
 #each filter can be part of the repository name or a whole core category,
-#i.e. “C64 Minimig NES SNES arcade-cores”;
+#i.e. “C64 Minimig NES SNES arcade-cores” if you want the script to check only
+#for C64, Minimig, NES, SNES, and all arcade cores repositories making the whole
+#update process quicker;
 #if you use this option probably you want DOWNLOAD_NEW_CORES="true".
 REPOSITORIES_FILTER=""
 
@@ -206,7 +209,7 @@ for CORE_URL in $CORE_URLS; do
 			
 			if [[ "$MAX_VERSION" > "$MAX_LOCAL_VERSION" ]]
 			then
-				if [ "$DOWNLOAD_NEW_CORES" != "false" ] || [ "$MAX_LOCAL_VERSION" != "" ]
+				if [ "$DOWNLOAD_NEW_CORES" != "false" ] || [ "$MAX_LOCAL_VERSION" != "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -q "SD-Installer"; }
 				then
 					echo "Downloading $FILE_NAME"
 					echo "URL: https://github.com$MAX_RELEASE_URL?raw=true" >&2
