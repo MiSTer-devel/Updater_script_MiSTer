@@ -53,21 +53,21 @@ declare -A CORE_CATEGORY_PATHS=(
 ARCADE_HACKS_PATH="${CORE_CATEGORY_PATHS["arcade-cores"]}/_Arcade Hacks"
 
 #Specifies if old files (cores, main MiSTer executable, menu, SD-Installer, etc.) will be deleted before an update.
-DELETE_OLD_FILES=true
+DELETE_OLD_FILES="true"
 
 #Specifies what to do with new online cores not installed locally:
 #true for downloading new cores in the standard directories (see CORE_CATEGORY_PATHS),
 #false for not downloading new cores at all,
 #a string value, i.e. "NewCores", for downloading new cores in the "NewCores" subdirectory.
-DOWNLOAD_NEW_CORES=true
+DOWNLOAD_NEW_CORES="true"
 
 #Specifies if the “Arcade-“ prefix will be removed in local arcade cores.
-REMOVE_ARCADE_PREFIX=true
+REMOVE_ARCADE_PREFIX="true"
 
 #A space separated list of filters for the online repositories;
 #each filter can be part of the repository name or a whole core category,
 #i.e. “C64 Minimig NES SNES arcade-cores”;
-#if you use this option probably you want DOWNLOAD_NEW_CORES=true.
+#if you use this option probably you want DOWNLOAD_NEW_CORES="true".
 REPOSITORIES_FILTER=""
 
 
@@ -79,7 +79,7 @@ ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/m
 UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
 #EXPERIMENTAL: Uncomment/Comment next line if you want or don't want the Kernel, the Linux filesystem and the bootloader to be updated; do it at your own risk!
 #SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
-AUTOREBOOT=true
+AUTOREBOOT="true"
 REBOOT_PAUSE=0
 TEMP_PATH="/tmp"
 
@@ -96,7 +96,7 @@ fi
 mkdir -p "${CORE_CATEGORY_PATHS[@]}"
 
 declare -A NEW_CORE_CATEGORY_PATHS
-if [ "$DOWNLOAD_NEW_CORES" != true ] && [ "$DOWNLOAD_NEW_CORES" != false ] && [ "$DOWNLOAD_NEW_CORES" != "" ]
+if [ "$DOWNLOAD_NEW_CORES" != "true" ] && [ "$DOWNLOAD_NEW_CORES" != "false" ] && [ "$DOWNLOAD_NEW_CORES" != "" ]
 then
 	for idx in "${!CORE_CATEGORY_PATHS[@]}"; do
 		NEW_CORE_CATEGORY_PATHS[$idx]=$(echo ${CORE_CATEGORY_PATHS[$idx]} | sed "s/$(echo $BASE_PATH | sed 's/\//\\\//g')/$(echo $BASE_PATH | sed 's/\//\\\//g')\/$DOWNLOAD_NEW_CORES/g")
@@ -107,7 +107,7 @@ fi
 CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl -ksLf "$MISTER_URL/wiki"| awk '/user-content-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
 CORE_CATEGORY="-"
 SD_INSTALLER_PATH=""
-REBOOT_NEEDED=false
+REBOOT_NEEDED="false"
 CORE_CATEGORIES_FILTER=""
 if [ "$REPOSITORIES_FILTER" != "" ]
 then
@@ -155,7 +155,7 @@ for CORE_URL in $CORE_URLS; do
 			done
 			
 			FILE_NAME=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g')
-			if [ "$CORE_CATEGORY" == "arcade-cores" ] && [ $REMOVE_ARCADE_PREFIX == true ]
+			if [ "$CORE_CATEGORY" == "arcade-cores" ] && [ $REMOVE_ARCADE_PREFIX == "true" ]
 			then
 				FILE_NAME=$(echo "$FILE_NAME" | sed 's/Arcade-//gI')
 			fi
@@ -190,7 +190,7 @@ for CORE_URL in $CORE_URLS; do
 							then
 								MAX_LOCAL_VERSION=$CURRENT_LOCAL_VERSION
 							fi
-							if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == true ]
+							if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == "true" ]
 							then
 								echo "Deleting $(echo $CURRENT_FILE | sed 's/.*\///g')"
 								rm "$CURRENT_FILE" > /dev/null 2>&1
@@ -206,7 +206,7 @@ for CORE_URL in $CORE_URLS; do
 			
 			if [[ "$MAX_VERSION" > "$MAX_LOCAL_VERSION" ]]
 			then
-				if [ "$DOWNLOAD_NEW_CORES" != false ] || [ "$MAX_LOCAL_VERSION" != "" ]
+				if [ "$DOWNLOAD_NEW_CORES" != "false" ] || [ "$MAX_LOCAL_VERSION" != "" ]
 				then
 					echo "Downloading $FILE_NAME"
 					echo "URL: https://github.com$MAX_RELEASE_URL?raw=true" >&2
@@ -217,7 +217,7 @@ for CORE_URL in $CORE_URLS; do
 						echo "Copying $DESTINATION_FILE"
 						rm "$CURRENT_DIR/$DESTINATION_FILE" > /dev/null 2>&1
 						cp "$CURRENT_DIR/$FILE_NAME" "$CURRENT_DIR/$DESTINATION_FILE"
-						REBOOT_NEEDED=true
+						REBOOT_NEEDED="true"
 					fi
 					if echo "$CORE_URL" | grep -q "SD-Installer"
 					then
@@ -230,7 +230,7 @@ for CORE_URL in $CORE_URLS; do
 							if [ -d "$ARCADE_HACK_DIR" ]
 							then
 								echo "Updating $(echo $ARCADE_HACK_DIR | sed 's/.*\///g')"
-								if [ $DELETE_OLD_FILES == true ]
+								if [ $DELETE_OLD_FILES == "true" ]
 								then
 									for ARCADE_HACK_CORE in "$ARCADE_HACK_DIR/"*.rbf
 									do
@@ -366,7 +366,7 @@ then
 			fi
 			rm -R "/media/fat/linux.update" > /dev/null 2>&1
 			sync
-			REBOOT_NEEDED=true
+			REBOOT_NEEDED="true"
 		else
 			echo "Downloaded installer RAR is broken, deleting $SD_INSTALLER_PATH"
 			rm "$SD_INSTALLER_PATH" > /dev/null 2>&1
@@ -375,9 +375,9 @@ then
 fi
 
 echo "Done!"
-if [ $REBOOT_NEEDED == true ]
+if [ $REBOOT_NEEDED == "true" ]
 then
-	if [ $AUTOREBOOT == true ]
+	if [ $AUTOREBOOT == "true" ]
 	then
 		echo "Rebooting in $REBOOT_PAUSE seconds"
 		sleep $REBOOT_PAUSE
