@@ -89,7 +89,7 @@ TEMP_PATH="/tmp"
 
 if ! ping -q -w1 -c1 google.com &>/dev/null
 then
-	echo "No Interent connection"
+	echo "No Internet connection"
 	exit 1
 fi
 
