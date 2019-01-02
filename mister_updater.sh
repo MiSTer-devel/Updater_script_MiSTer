@@ -386,3 +386,5 @@ then
 		echo "You should reboot"
 	fi
 fi
+
+exit 0
