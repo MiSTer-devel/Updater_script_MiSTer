@@ -18,21 +18,22 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
-# Version 1.6.2 - 2019.01.02 - Solved a bug that prevented updating MiSTer main executable, menu.rbf and Linux system when DOWNLOAD_NEW_CORES="false" and timestamped files were missing; improved REPOSITORIES_FILTER comments; code clean up by frederic-mahe (thank you very much).
-# Version 1.6.1 - 2018.12.30 - Improved date-time parsing for additional repositories; main MiSTer executable, menu.rbf and Linux system are always updated in /media/fat even if BASE_PATH is configured for another directory.
-# Version 1.6 - 2018.12.29 - Added REPOSITORIES_FILTER option (i.e. "C64 Minimig NES SNES"); additional repositories files (Filters and GameBoy palettes) online dates and times are checked against local files before downloading; added Internet connection test at the beginning of the script; improved ARCADE_HACKS_PATH file purging; solved a bug with DOWNLOAD_NEW_CORES and paths with spaces; added comments to user options.
-# Version 1.5 - 2018.12.27 - Reorganized user options; improved DOWNLOAD_NEW_CORES option handling for paths with spaces; added ARCADE_HACKS_PATH parameter for defining a directory containing arcade hacks to be updated, each arcade hack is a subdirectory with the name starting like the rbf core with an underscore prefix (i.e. /media/fat/_Arcade/_Arcade Hacks/_BurgerTime - hack/).
-# Version 1.4 - 2018.12.26 - Added DOWNLOAD_NEW_CORES option: true for downloading new cores in the standard directories as previous script releases, false for not downloading new cores at all, a string value, i.e. "NewCores", for downloading new cores in the "NewCores" subdirectory.
-# Version 1.3.6 - 2018.12.24 - Improved local file name parsing so that the script deletes and updates NES_20181113.rbf, but not NES_20181113_NN.rbf.
-# Version 1.3.5 - 2018.12.22 - Solved Atari 800XL/5200 and SharpMZ issues; replaced "reboot" with "reboot now"; shortened some of the script outputs.
-# Version 1.3.4 - 2018.12.22 - Shortened most of the script outputs in order to make them more friendly to the new MiSTer Script menu OSD; simplified missing directories creation (thanks frederic-mahe).
-# Version 1.3.3 - 2018.12.16 - Updating the bootloader before deleting linux.img, moved the Linux system update at the end of the script with an "atomic" approach (first extracting in a linux.update directory and then moving files).
-# Version 1.3.2 - 2018.12.16 - Deleting linux.img before updating the linux directory so that the extracted new file won't be overwritten.
-# Version 1.3.1 - 2018.12.16 - Disabled Linux updating as default behaviour.
-# Version 1.3 - 2018.12.16 - Added Kernel, Linux filesystem and bootloader updating functionality; added autoreboot option.
-# Version 1.2 - 2018.12.14 - Added support for distinct directories for computer cores, console cores, arcade cores and service cores; added an option for removing "Arcade-" prefix from arcade core names.
-# Version 1.1 - 2018.12.11 - Added support for additional repositories (i.e. Scaler filters and Game Boy palettes), renamed some variables.
-# Version 1.0 - 2018.12.11 - First commit.
+# Version 1.7 - 2019-01-07 - Added support for an ini configuration file with the same name as the original script, i.e. mister_updater.ini or update.ini; added CIFS_MiSTer and Scripts_MiSTer additional repositories; improved additional repositories handling; added optional advanced NTP_SERVER option for syncing system date and time with a NTP server.
+# Version 1.6.2 - 2019-01-02 - Solved a bug that prevented updating MiSTer main executable, menu.rbf and Linux system when DOWNLOAD_NEW_CORES="false" and timestamped files were missing; improved REPOSITORIES_FILTER comments; code clean up by frederic-mahe (thank you very much).
+# Version 1.6.1 - 2018-12-30 - Improved date-time parsing for additional repositories; main MiSTer executable, menu.rbf and Linux system are always updated in /media/fat even if BASE_PATH is configured for another directory.
+# Version 1.6 - 2018-12-29 - Added REPOSITORIES_FILTER option (i.e. "C64 Minimig NES SNES"); additional repositories files (Filters and GameBoy palettes) online dates and times are checked against local files before downloading; added Internet connection test at the beginning of the script; improved ARCADE_HACKS_PATH file purging; solved a bug with DOWNLOAD_NEW_CORES and paths with spaces; added comments to user options.
+# Version 1.5 - 2018-12-27 - Reorganized user options; improved DOWNLOAD_NEW_CORES option handling for paths with spaces; added ARCADE_HACKS_PATH parameter for defining a directory containing arcade hacks to be updated, each arcade hack is a subdirectory with the name starting like the rbf core with an underscore prefix (i.e. /media/fat/_Arcade/_Arcade Hacks/_BurgerTime - hack/).
+# Version 1.4 - 2018-12-26 - Added DOWNLOAD_NEW_CORES option: true for downloading new cores in the standard directories as previous script releases, false for not downloading new cores at all, a string value, i.e. "NewCores", for downloading new cores in the "NewCores" subdirectory.
+# Version 1.3.6 - 2018-12-24 - Improved local file name parsing so that the script deletes and updates NES_20181113.rbf, but not NES_20181113_NN.rbf.
+# Version 1.3.5 - 2018-12-22 - Solved Atari 800XL/5200 and SharpMZ issues; replaced "reboot" with "reboot now"; shortened some of the script outputs.
+# Version 1.3.4 - 2018-12-22 - Shortened most of the script outputs in order to make them more friendly to the new MiSTer Script menu OSD; simplified missing directories creation (thanks frederic-mahe).
+# Version 1.3.3 - 2018-12-16 - Updating the bootloader before deleting linux.img, moved the Linux system update at the end of the script with an "atomic" approach (first extracting in a linux.update directory and then moving files).
+# Version 1.3.2 - 2018-12-16 - Deleting linux.img before updating the linux directory so that the extracted new file won't be overwritten.
+# Version 1.3.1 - 2018-12-16 - Disabled Linux updating as default behaviour.
+# Version 1.3 - 2018-12-16 - Added Kernel, Linux filesystem and bootloader updating functionality; added autoreboot option.
+# Version 1.2 - 2018-12-14 - Added support for distinct directories for computer cores, console cores, arcade cores and service cores; added an option for removing "Arcade-" prefix from arcade core names.
+# Version 1.1 - 2018-12-11 - Added support for additional repositories (i.e. Scaler filters and Game Boy palettes), renamed some variables.
+# Version 1.0 - 2018-12-11 - First commit.
 
 
 
@@ -41,12 +42,11 @@
 BASE_PATH="/media/fat"
 
 #Directories where all cores categories will be downloaded.
-declare -A CORE_CATEGORY_PATHS=(
-	["cores"]="$BASE_PATH/_Computer"
-	["console-cores"]="$BASE_PATH/_Console"
-	["arcade-cores"]="$BASE_PATH/_Arcade"
-	["service-cores"]="$BASE_PATH/_Utility"
-)
+declare -A CORE_CATEGORY_PATHS
+CORE_CATEGORY_PATHS["cores"]="$BASE_PATH/_Computer"
+CORE_CATEGORY_PATHS["console-cores"]="$BASE_PATH/_Console"
+CORE_CATEGORY_PATHS["arcade-cores"]="$BASE_PATH/_Arcade"
+CORE_CATEGORY_PATHS["service-cores"]="$BASE_PATH/_Utility"
 
 #Optional directory containing arcade hacks to be updated,
 #each arcade hack is a subdirectory with the name starting like the rbf core with an underscore prefix,
@@ -78,10 +78,12 @@ REPOSITORIES_FILTER=""
 #========= ADVANCED OPTIONS =========
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
 #Comment next line if you don't want to download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
-ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters txt $BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes gbp $BASE_PATH/GameBoy" )
+ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|$BASE_PATH/GameBoy" "https://github.com/MiSTer-devel/CIFS_MiSTer|sh|$BASE_PATH/#Scripts" "https://github.com/MiSTer-devel/Scripts_MiSTer|sh|$BASE_PATH/#Scripts")
 UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
 #EXPERIMENTAL: Uncomment/Comment next line if you want or don't want the Kernel, the Linux filesystem and the bootloader to be updated; do it at your own risk!
 #SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
+#Uncomment this if you want the script to sync the system date and time with a NTP server
+#NTP_SERVER="0.pool.ntp.org"
 AUTOREBOOT="true"
 REBOOT_PAUSE=0
 TEMP_PATH="/tmp"
@@ -90,10 +92,28 @@ TEMP_PATH="/tmp"
 
 #========= CODE STARTS HERE =========
 
+ORIGINAL_SCRIPT_PATH="$0"
+if [ "$ORIGINAL_SCRIPT_PATH" == "bash" ]
+then
+	ORIGINAL_SCRIPT_PATH=$(ps | grep "^ *$PPID " | grep -o "[^ ]*$")
+fi
+INI_PATH=${ORIGINAL_SCRIPT_PATH%.*}.ini
+if [ -f $INI_PATH ]
+then
+	eval "$(cat $INI_PATH | tr -d '\r')"
+fi
+
 if ! ping -q -w1 -c1 google.com &>/dev/null
 then
 	echo "No Internet connection"
 	exit 1
+fi
+
+if [ "$NTP_SERVER" != "" ]
+then
+	echo "Syncing date and time with"
+	echo "$NTP_SERVER"$'\n'
+	ntpdate -s -b -u $NTP_SERVER
 fi
 
 mkdir -p "${CORE_CATEGORY_PATHS[@]}"
@@ -267,27 +287,38 @@ for CORE_URL in $CORE_URLS; do
 done
 
 for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
+	OLD_IFS="$IFS"
+	IFS="|"
 	PARAMS=($ADDITIONAL_REPOSITORY)
+	ADDITIONAL_FILES_URL="${PARAMS[0]}"
+	ADDITIONAL_FILES_EXTENSION="${PARAMS[1]}"
 	CURRENT_DIR="${PARAMS[2]}"
+	IFS="$OLD_IFS"
+	
+	#echo "ADDITIONAL_REPOSITORY: $ADDITIONAL_REPOSITORY"
+	#echo "PARAMS: $PARAMS"
+	#echo "ADDITIONAL_FILES_URL: $ADDITIONAL_FILES_URL"
+	#echo "ADDITIONAL_FILES_EXTENSION: $ADDITIONAL_FILES_EXTENSION"
+	#echo "CURRENT_DIR: $CURRENT_DIR"
+	#break
+	
 	if [ ! -d "$CURRENT_DIR" ]
 	then
 		mkdir -p "$CURRENT_DIR"
 	fi
-	ADDITIONAL_FILES_URL="${PARAMS[0]}"
 	echo "Checking $(echo $ADDITIONAL_FILES_URL | sed 's/.*\///g')"
 	echo "URL: $ADDITIONAL_FILES_URL" >&2
 	echo ""
 	CONTENT_TDS=$(curl -ksLf "$ADDITIONAL_FILES_URL")
 	ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
 	ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
-	#CONTENT_TDS=$(echo "$CONTENT_TDS" | tr '\n' ' ' | egrep -o '<td class="content".*?<\/td>' | sed 's/ \{1,\}/+/g' | tr '\n' ' ')
 	CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content"/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
 	CONTENT_TD_INDEX=0
 	for CONTENT_TD in $CONTENT_TDS; do
-		ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "/MiSTer-devel/[a-zA-Z0-9./_-]*\.${PARAMS[1]}")
+		ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\"[a-zA-Z0-9%()./_-]*\.$ADDITIONAL_FILES_EXTENSION" |  sed 's/href=\"//g')
 		if [ "$ADDITIONAL_FILE_URL" != "" ]
 		then
-			ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g')
+			ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g')
 			ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_FILE_DATETIMES[$CONTENT_TD_INDEX]}
 			if [ -f "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" ]
 			then
