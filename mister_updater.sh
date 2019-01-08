@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 1.7.1 - 2019-01-07 - unrar-nonfree is always downloaded in /media/fat/linux.
 # Version 1.7 - 2019-01-07 - Added support for an ini configuration file with the same name as the original script, i.e. mister_updater.ini or update.ini; added CIFS_MiSTer and Scripts_MiSTer additional repositories; improved additional repositories handling; added optional advanced NTP_SERVER option for syncing system date and time with a NTP server.
 # Version 1.6.2 - 2019-01-02 - Solved a bug that prevented updating MiSTer main executable, menu.rbf and Linux system when DOWNLOAD_NEW_CORES="false" and timestamped files were missing; improved REPOSITORIES_FILTER comments; code clean up by frederic-mahe (thank you very much).
 # Version 1.6.1 - 2018-12-30 - Improved date-time parsing for additional repositories; main MiSTer executable, menu.rbf and Linux system are always updated in /media/fat even if BASE_PATH is configured for another directory.
@@ -294,14 +295,6 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	ADDITIONAL_FILES_EXTENSION="${PARAMS[1]}"
 	CURRENT_DIR="${PARAMS[2]}"
 	IFS="$OLD_IFS"
-	
-	#echo "ADDITIONAL_REPOSITORY: $ADDITIONAL_REPOSITORY"
-	#echo "PARAMS: $PARAMS"
-	#echo "ADDITIONAL_FILES_URL: $ADDITIONAL_FILES_URL"
-	#echo "ADDITIONAL_FILES_EXTENSION: $ADDITIONAL_FILES_EXTENSION"
-	#echo "CURRENT_DIR: $CURRENT_DIR"
-	#break
-	
 	if [ ! -d "$CURRENT_DIR" ]
 	then
 		mkdir -p "$CURRENT_DIR"
@@ -342,7 +335,7 @@ done
 if [ "$SD_INSTALLER_PATH" != "" ]
 then
 	echo "Linux system must be updated"
-	if [ ! -f "/media/fat/unrar-nonfree" ]
+	if [ ! -f "/media/fat/linux/unrar-nonfree" ]
 	then
 		UNRAR_DEB_URLS=$(curl -ksLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9./_+-]*_armhf\.deb\"' | sed 's/\"//g')
 		MAX_VERSION=""
@@ -364,20 +357,20 @@ then
 		ar -x "$TEMP_PATH/$MAX_RELEASE_URL" data.tar.xz
 		cd "$ORIGINAL_DIR"
 		rm "$TEMP_PATH/$MAX_RELEASE_URL"
-		tar -xJf "$TEMP_PATH/data.tar.xz" --strip-components=3 -C "/media/fat" ./usr/bin/unrar-nonfree
+		tar -xJf "$TEMP_PATH/data.tar.xz" --strip-components=3 -C "/media/fat/linux" ./usr/bin/unrar-nonfree
 		rm "$TEMP_PATH/data.tar.xz" > /dev/null 2>&1
 	fi
-	if [ -f "/media/fat/unrar-nonfree" ] && [ -f "$SD_INSTALLER_PATH" ]
+	if [ -f "/media/fat/linux/unrar-nonfree" ] && [ -f "$SD_INSTALLER_PATH" ]
 	then
 		sync
-		if /media/fat/unrar-nonfree t "$SD_INSTALLER_PATH"
+		if /media/fat/linux/unrar-nonfree t "$SD_INSTALLER_PATH"
 		then
 			if [ -d /media/fat/linux.update ]
 			then
 				rm -R "/media/fat/linux.update" > /dev/null 2>&1
 			fi
 			mkdir "/media/fat/linux.update"
-			if /media/fat/unrar-nonfree e -y "$SD_INSTALLER_PATH" files/linux/* /media/fat/linux.update
+			if /media/fat/linux/unrar-nonfree e -y "$SD_INSTALLER_PATH" files/linux/* /media/fat/linux.update
 			then
 				echo ""
 				echo "======================================================================================"
