@@ -1,7 +1,7 @@
 # Updater script for MiSTer
 The script updates all MiSTer cores, including menu.rbf and the main MiSTer Linux executable; it updates scaler filters, GameBoy palettes and scripts; it can (experimental and risky) optionally update the whole Lynux system. Simply put [update.sh](https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/update.sh?raw=true) (please right click for saving the link) in your SD and launch it through MiSTer main menu OSD (press F12 and then Scripts).<br>
 It will always use the latest mister_updater.sh (where the real update code is) form GitHub, so you will never have to deal with "updater updates". You can make an update.ini (same name as the script) file with custom user options, see [mister_updater.sh](https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh) for user options and their explanations.<br>
-You can have many differently named copies of [update.sh](https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/update.sh?raw=true) and its ini file, for different updating behaviours.
+You can have many differently named copies of [update.sh](https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/update.sh?raw=true) and its ini file, for different updating behaviours:<br>
 i.e. you can make an *update_arcade.sh* with its *update_arcade.ini* using these settings
 ```
 REPOSITORIES_FILTER="arcade-cores"
