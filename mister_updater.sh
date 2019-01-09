@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 1.7.2 - 2019-01-09 - Cosmetic changes.
 # Version 1.7.1 - 2019-01-07 - unrar-nonfree is always downloaded in /media/fat/linux.
 # Version 1.7 - 2019-01-07 - Added support for an ini configuration file with the same name as the original script, i.e. mister_updater.ini or update.ini; added CIFS_MiSTer and Scripts_MiSTer additional repositories; improved additional repositories handling; added optional advanced NTP_SERVER option for syncing system date and time with a NTP server.
 # Version 1.6.2 - 2019-01-02 - Solved a bug that prevented updating MiSTer main executable, menu.rbf and Linux system when DOWNLOAD_NEW_CORES="false" and timestamped files were missing; improved REPOSITORIES_FILTER comments; code clean up by frederic-mahe (thank you very much).
@@ -79,7 +80,7 @@ REPOSITORIES_FILTER=""
 #========= ADVANCED OPTIONS =========
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
 #Comment next line if you don't want to download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
-ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|$BASE_PATH/GameBoy" "https://github.com/MiSTer-devel/CIFS_MiSTer|sh|$BASE_PATH/#Scripts" "https://github.com/MiSTer-devel/Scripts_MiSTer|sh|$BASE_PATH/#Scripts")
+ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|$BASE_PATH/GameBoy" "https://github.com/MiSTer-devel/CIFS_MiSTer|sh|$BASE_PATH/#Scripts" "https://github.com/MiSTer-devel/Scripts_MiSTer|sh|$BASE_PATH/#Scripts" )
 UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
 #EXPERIMENTAL: Uncomment/Comment next line if you want or don't want the Kernel, the Linux filesystem and the bootloader to be updated; do it at your own risk!
 #SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
@@ -299,7 +300,7 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	then
 		mkdir -p "$CURRENT_DIR"
 	fi
-	echo "Checking $(echo $ADDITIONAL_FILES_URL | sed 's/.*\///g')"
+	echo "Checking $(echo $ADDITIONAL_FILES_URL | sed 's/.*\///g' | awk '{ print toupper( substr( $0, 1, 1 ) ) substr( $0, 2 ); }')"
 	echo "URL: $ADDITIONAL_FILES_URL" >&2
 	echo ""
 	CONTENT_TDS=$(curl -ksLf "$ADDITIONAL_FILES_URL")
