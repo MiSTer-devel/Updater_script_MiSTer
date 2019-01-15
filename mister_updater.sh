@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 1.8 - 2019-01-15 - Using /media/fat/#Scripts/.mister_updater as work directory, you can safely delete MiSTer_yyyymmdd, menu_yyyymmdd.rbf and release_yyyymmdd.rar from SD root now; using empty files as semaphores and corrected a minor bug about their target directories; improved user option comments.
 # Version 1.7.2 - 2019-01-09 - Cosmetic changes.
 # Version 1.7.1 - 2019-01-07 - unrar-nonfree is always downloaded in /media/fat/linux.
 # Version 1.7 - 2019-01-07 - Added support for an ini configuration file with the same name as the original script, i.e. mister_updater.ini or update.ini; added CIFS_MiSTer and Scripts_MiSTer additional repositories; improved additional repositories handling; added optional advanced NTP_SERVER option for syncing system date and time with a NTP server.
@@ -43,7 +44,7 @@
 #Base directory for all script’s tasks, "/media/fat" for SD root, "/media/usb0" for USB drive root.
 BASE_PATH="/media/fat"
 
-#Directories where all cores categories will be downloaded.
+#Directories where all core categories will be downloaded.
 declare -A CORE_CATEGORY_PATHS
 CORE_CATEGORY_PATHS["cores"]="$BASE_PATH/_Computer"
 CORE_CATEGORY_PATHS["console-cores"]="$BASE_PATH/_Console"
@@ -55,10 +56,10 @@ CORE_CATEGORY_PATHS["service-cores"]="$BASE_PATH/_Utility"
 #i.e. "/media/fat/_Arcade/_Arcade Hacks/_BurgerTime - hack/".
 ARCADE_HACKS_PATH="${CORE_CATEGORY_PATHS["arcade-cores"]}/_Arcade Hacks"
 
-#Specifies if old files (cores, main MiSTer executable, menu, SD-Installer, etc.) will be deleted before an update.
+#Specifies if old files (cores, main MiSTer executable, menu, SD-Installer, etc.) will be deleted as part of an update.
 DELETE_OLD_FILES="true"
 
-#Specifies what to do with new online cores not installed locally:
+#Specifies what to do with new cores not installed locally:
 #true for downloading new cores in the standard directories (see CORE_CATEGORY_PATHS),
 #false for not downloading new cores at all,
 #a string value, i.e. "NewCores", for downloading new cores in the "NewCores" subdirectory.
@@ -72,15 +73,19 @@ REMOVE_ARCADE_PREFIX="true"
 #i.e. “C64 Minimig NES SNES arcade-cores” if you want the script to check only
 #for C64, Minimig, NES, SNES, and all arcade cores repositories making the whole
 #update process quicker;
-#if you use this option probably you want DOWNLOAD_NEW_CORES="true".
+#if you use this option probably you want DOWNLOAD_NEW_CORES="true" so that you
+#can use this filter in order to setup a brand new empty SD with only the cores
+#you need, otherwise cores in the filter, but not on the SD won't be downloaded.
 REPOSITORIES_FILTER=""
 
 
 
 #========= ADVANCED OPTIONS =========
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
+SCRIPTS_PATH="#Scripts"
+WORK_PATH="/media/fat/$SCRIPTS_PATH/.mister_updater"
 #Comment next line if you don't want to download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
-ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|$BASE_PATH/GameBoy" "https://github.com/MiSTer-devel/CIFS_MiSTer|sh|$BASE_PATH/#Scripts" "https://github.com/MiSTer-devel/Scripts_MiSTer|sh|$BASE_PATH/#Scripts" )
+ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|$BASE_PATH/GameBoy" "https://github.com/MiSTer-devel/CIFS_MiSTer|sh|$BASE_PATH/$SCRIPTS_PATH" "https://github.com/MiSTer-devel/Scripts_MiSTer|sh|$BASE_PATH/$SCRIPTS_PATH" )
 UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
 #EXPERIMENTAL: Uncomment/Comment next line if you want or don't want the Kernel, the Linux filesystem and the bootloader to be updated; do it at your own risk!
 #SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
@@ -193,11 +198,12 @@ for CORE_URL in $CORE_URLS; do
 			fi 
 			if [ "$CURRENT_DIRS" == "" ]
 			then
-				CURRENT_DIRS="$BASE_PATH"
+				CURRENT_DIRS=("$BASE_PATH")
 			fi
 			if [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -q "SD-Installer"; }
 			then
-				CURRENT_DIRS="/media/fat"
+				mkdir -p "$WORK_PATH"
+				CURRENT_DIRS=("$WORK_PATH")
 			fi
 			
 			CURRENT_LOCAL_VERSION=""
@@ -239,9 +245,10 @@ for CORE_URL in $CORE_URLS; do
 					if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
 					then
 						DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
-						echo "Copying $DESTINATION_FILE"
-						rm "$CURRENT_DIR/$DESTINATION_FILE" > /dev/null 2>&1
-						cp "$CURRENT_DIR/$FILE_NAME" "$CURRENT_DIR/$DESTINATION_FILE"
+						echo "Moving $DESTINATION_FILE"
+						rm "/media/fat/$DESTINATION_FILE" > /dev/null 2>&1
+						mv "$CURRENT_DIR/$FILE_NAME" "/media/fat/$DESTINATION_FILE"
+						touch "$CURRENT_DIR/$FILE_NAME"
 						REBOOT_NEEDED="true"
 					fi
 					if echo "$CORE_URL" | grep -q "SD-Installer"
@@ -384,6 +391,8 @@ then
 				echo "Reflash the bootloader with the SD Installer if needed."
 				echo "======================================================================================"
 				echo ""
+				rm "$SD_INSTALLER_PATH" > /dev/null 2>&1
+				touch "$SD_INSTALLER_PATH"
 				sync
 				mv "/media/fat/linux.update/"*boot* "/media/fat/linux/"
 				sync
