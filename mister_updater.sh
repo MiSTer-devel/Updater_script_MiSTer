@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 1.8.1 - 2019-01-16 - Changed ADDITIONAL_REPOSITORIES in order to download inc files from scripts repositories; improved ADDITIONAL_REPOSITORIES extensions handling.
 # Version 1.8 - 2019-01-15 - Using /media/fat/#Scripts/.mister_updater as work directory, you can safely delete MiSTer_yyyymmdd, menu_yyyymmdd.rbf and release_yyyymmdd.rar from SD root now; using empty files as semaphores and corrected a minor bug about their target directories; improved user option comments.
 # Version 1.7.2 - 2019-01-09 - Cosmetic changes.
 # Version 1.7.1 - 2019-01-07 - unrar-nonfree is always downloaded in /media/fat/linux.
@@ -85,7 +86,7 @@ MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
 SCRIPTS_PATH="#Scripts"
 WORK_PATH="/media/fat/$SCRIPTS_PATH/.mister_updater"
 #Comment next line if you don't want to download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
-ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|$BASE_PATH/GameBoy" "https://github.com/MiSTer-devel/CIFS_MiSTer|sh|$BASE_PATH/$SCRIPTS_PATH" "https://github.com/MiSTer-devel/Scripts_MiSTer|sh|$BASE_PATH/$SCRIPTS_PATH" )
+ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|$BASE_PATH/GameBoy" "https://github.com/MiSTer-devel/CIFS_MiSTer|sh inc|$BASE_PATH/$SCRIPTS_PATH" "https://github.com/MiSTer-devel/Scripts_MiSTer|sh inc|$BASE_PATH/$SCRIPTS_PATH" )
 UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
 #EXPERIMENTAL: Uncomment/Comment next line if you want or don't want the Kernel, the Linux filesystem and the bootloader to be updated; do it at your own risk!
 #SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
@@ -300,7 +301,7 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	IFS="|"
 	PARAMS=($ADDITIONAL_REPOSITORY)
 	ADDITIONAL_FILES_URL="${PARAMS[0]}"
-	ADDITIONAL_FILES_EXTENSION="${PARAMS[1]}"
+	ADDITIONAL_FILES_EXTENSIONS="\($(echo ${PARAMS[1]} | sed 's/ \{1,\}/\\|/g')\)"
 	CURRENT_DIR="${PARAMS[2]}"
 	IFS="$OLD_IFS"
 	if [ ! -d "$CURRENT_DIR" ]
@@ -316,7 +317,7 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content"/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
 	CONTENT_TD_INDEX=0
 	for CONTENT_TD in $CONTENT_TDS; do
-		ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\"[a-zA-Z0-9%()./_-]*\.$ADDITIONAL_FILES_EXTENSION" |  sed 's/href=\"//g')
+		ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\(\"\|\'\)[a-zA-Z0-9%()./_-]*\.$ADDITIONAL_FILES_EXTENSIONS\(\"\|\'\)" | sed "s/href=//g" | sed "s/\(\"\|\'\)//g")
 		if [ "$ADDITIONAL_FILE_URL" != "" ]
 		then
 			ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g')
