@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 1.8.2 - 2019-01-21 - Changed ARCADE_HACKS_PATH to ARCADE_ALT_PATHS: not it supports a pipe "|" separated list of directories containing alternative arcade cores.
 # Version 1.8.1 - 2019-01-16 - Changed ADDITIONAL_REPOSITORIES in order to download inc files from scripts repositories; improved ADDITIONAL_REPOSITORIES extensions handling.
 # Version 1.8 - 2019-01-15 - Using /media/fat/#Scripts/.mister_updater as work directory, you can safely delete MiSTer_yyyymmdd, menu_yyyymmdd.rbf and release_yyyymmdd.rar from SD root now; using empty files as semaphores and corrected a minor bug about their target directories; improved user option comments.
 # Version 1.7.2 - 2019-01-09 - Cosmetic changes.
@@ -52,10 +53,10 @@ CORE_CATEGORY_PATHS["console-cores"]="$BASE_PATH/_Console"
 CORE_CATEGORY_PATHS["arcade-cores"]="$BASE_PATH/_Arcade"
 CORE_CATEGORY_PATHS["service-cores"]="$BASE_PATH/_Utility"
 
-#Optional directory containing arcade hacks to be updated,
-#each arcade hack is a subdirectory with the name starting like the rbf core with an underscore prefix,
+#Optional pipe "|" separated list of directories containing alternative arcade cores to be updated,
+#each alternative (hack/revision/whatever) arcade is a subdirectory with the name starting like the rbf core with an underscore prefix,
 #i.e. "/media/fat/_Arcade/_Arcade Hacks/_BurgerTime - hack/".
-ARCADE_HACKS_PATH="${CORE_CATEGORY_PATHS["arcade-cores"]}/_Arcade Hacks"
+ARCADE_ALT_PATHS="${CORE_CATEGORY_PATHS["arcade-cores"]}/_Arcade Hacks|${CORE_CATEGORY_PATHS["arcade-cores"]}/_Arcade Revisions"
 
 #Specifies if old files (cores, main MiSTer executable, menu, SD-Installer, etc.) will be deleted as part of an update.
 DELETE_OLD_FILES="true"
@@ -258,25 +259,31 @@ for CORE_URL in $CORE_URLS; do
 					fi
 					if [ "$CORE_CATEGORY" == "arcade-cores" ]
 					then
-						for ARCADE_HACK_DIR in "$ARCADE_HACKS_PATH/_$BASE_FILE_NAME"*
+						OLD_IFS="$IFS"
+						IFS="|"
+						for ARCADE_ALT_PATH in $ARCADE_ALT_PATHS
 						do
-							if [ -d "$ARCADE_HACK_DIR" ]
-							then
-								echo "Updating $(echo $ARCADE_HACK_DIR | sed 's/.*\///g')"
-								if [ $DELETE_OLD_FILES == "true" ]
+							for ARCADE_ALT_DIR in "$ARCADE_ALT_PATH/_$BASE_FILE_NAME"*
+							do
+								if [ -d "$ARCADE_ALT_DIR" ]
 								then
-									for ARCADE_HACK_CORE in "$ARCADE_HACK_DIR/"*.rbf
-									do
-										if [ -f "$ARCADE_HACK_CORE" ] && { echo "$ARCADE_HACK_CORE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\.rbf$"; }
-										then
-											rm "$ARCADE_HACK_CORE"  > /dev/null 2>&1
-										fi
-									done
+									echo "Updating $(echo $ARCADE_ALT_DIR | sed 's/.*\///g')"
+									if [ $DELETE_OLD_FILES == "true" ]
+									then
+										for ARCADE_HACK_CORE in "$ARCADE_ALT_DIR/"*.rbf
+										do
+											if [ -f "$ARCADE_HACK_CORE" ] && { echo "$ARCADE_HACK_CORE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\.rbf$"; }
+											then
+												rm "$ARCADE_HACK_CORE"  > /dev/null 2>&1
+											fi
+										done
+									fi
+									cp "$CURRENT_DIR/$FILE_NAME" "$ARCADE_ALT_DIR/"
 								fi
-								cp "$CURRENT_DIR/$FILE_NAME" "$ARCADE_HACK_DIR/"
-							fi
+							done
 						done
 					fi
+					IFS="$OLD_IFS"
 					sync
 				else
 					echo "New core: $FILE_NAME"
