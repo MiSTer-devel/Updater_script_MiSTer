@@ -149,6 +149,7 @@ then
 	if [ "$(cat "$ORIGINAL_SCRIPT_PATH" | grep "^[^#].*")" == "curl -ksLf https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh?raw=true | bash -" ]
 	then
 		echo "Downloading $(echo $ORIGINAL_SCRIPT_PATH | sed 's/.*\///g')"
+		echo ""
 		curl $SSL_SECURITY_OPTION -L "https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/update.sh?raw=true" -o "$ORIGINAL_SCRIPT_PATH"
 	fi
 fi
