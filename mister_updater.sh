@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 2.0 - 2019-02-02 - Added ALLOW_INSECURE_SSH option: "true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html ) is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads, otherwise it will use --insecure option for disabling SSL certificate verification. If CA certificates aren't installed it's advised to install them (i.e. using security_fixes.sh). "false" will never use --insecure option and if CA certificates aren't installed any download will fail.
 # Version 1.8.2 - 2019-01-21 - Changed ARCADE_HACKS_PATH to ARCADE_ALT_PATHS: not it supports a pipe "|" separated list of directories containing alternative arcade cores.
 # Version 1.8.1 - 2019-01-16 - Changed ADDITIONAL_REPOSITORIES in order to download inc files from scripts repositories; improved ADDITIONAL_REPOSITORIES extensions handling.
 # Version 1.8 - 2019-01-15 - Using /media/fat/#Scripts/.mister_updater as work directory, you can safely delete MiSTer_yyyymmdd, menu_yyyymmdd.rbf and release_yyyymmdd.rar from SD root now; using empty files as semaphores and corrected a minor bug about their target directories; improved user option comments.
@@ -83,6 +84,13 @@ REPOSITORIES_FILTER=""
 
 
 #========= ADVANCED OPTIONS =========
+#ALLOW_INSECURE_SSH="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
+#is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads,
+#otherwise it will use --insecure option for disabling SSL certificate verification.
+#If CA certificates aren't installed it's advised to install them (i.e. using security_fixes.sh).
+#ALLOW_INSECURE_SSH="false" will never use --insecure option and if CA certificates aren't installed
+#any download will fail.
+ALLOW_INSECURE_SSH="true"
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
 SCRIPTS_PATH="#Scripts"
 WORK_PATH="/media/fat/$SCRIPTS_PATH/.mister_updater"
@@ -112,10 +120,37 @@ then
 	eval "$(cat $INI_PATH | tr -d '\r')"
 fi
 
-if ! ping -q -w1 -c1 google.com &>/dev/null
+SSL_SECURITY_OPTION=""
+curl -q https://google.com &>/dev/null
+case $? in
+	0)
+		;;
+	60)
+		if [ "$ALLOW_INSECURE_SSH" == "true" ]
+		then
+			SSL_SECURITY_OPTION="--insecure"
+		else
+			echo "CA certificates need"
+			echo "to be fixed for"
+			echo "using SSL certificate"
+			echo "verification."
+			echo "Please fix them i.e."
+			echo "using security_fixes.sh"
+			exit 2
+		fi
+		;;
+	*)
+		echo "No Internet connection"
+		exit 1
+		;;
+esac
+if [ "$SSL_SECURITY_OPTION" = "" ]
 then
-	echo "No Internet connection"
-	exit 1
+	if [ "$(cat "$ORIGINAL_SCRIPT_PATH" | grep "^[^#].*")" == "curl -ksLf https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh?raw=true | bash -" ]
+	then
+		echo "Downloading $(echo $ORIGINAL_SCRIPT_PATH | sed 's/.*\///g')"
+		curl $SSL_SECURITY_OPTION -L "https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/update.sh?raw=true" -o "$ORIGINAL_SCRIPT_PATH"
+	fi
 fi
 
 if [ "$NTP_SERVER" != "" ]
@@ -136,7 +171,7 @@ then
 	mkdir -p "${NEW_CORE_CATEGORY_PATHS[@]}"
 fi
 
-CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl -ksLf "$MISTER_URL/wiki"| awk '/user-content-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
+CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki"| awk '/user-content-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
 CORE_CATEGORY="-"
 SD_INSTALLER_PATH=""
 REBOOT_NEEDED="false"
@@ -158,9 +193,9 @@ for CORE_URL in $CORE_URLS; do
 			then
 				RELEASES_URL="$CORE_URL"
 			else
-				RELEASES_URL=https://github.com$(curl -ksLf "$CORE_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
+				RELEASES_URL=https://github.com$(curl $SSL_SECURITY_OPTION -sLf "$CORE_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
 			fi
-			RELEASE_URLS=$(curl -ksLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?')
+			RELEASE_URLS=$(curl $SSL_SECURITY_OPTION -sLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?')
 			
 			MAX_VERSION=""
 			MAX_RELEASE_URL=""
@@ -243,7 +278,7 @@ for CORE_URL in $CORE_URLS; do
 				then
 					echo "Downloading $FILE_NAME"
 					echo "URL: https://github.com$MAX_RELEASE_URL?raw=true" >&2
-					curl -kL "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
+					curl $SSL_SECURITY_OPTION -L "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
 					if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
 					then
 						DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
@@ -318,7 +353,7 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	echo "Checking $(echo $ADDITIONAL_FILES_URL | sed 's/.*\///g' | awk '{ print toupper( substr( $0, 1, 1 ) ) substr( $0, 2 ); }')"
 	echo "URL: $ADDITIONAL_FILES_URL" >&2
 	echo ""
-	CONTENT_TDS=$(curl -ksLf "$ADDITIONAL_FILES_URL")
+	CONTENT_TDS=$(curl $SSL_SECURITY_OPTION -sLf "$ADDITIONAL_FILES_URL")
 	ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
 	ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
 	CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content"/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
@@ -339,7 +374,7 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 			then
 				echo "Downloading $ADDITIONAL_FILE_NAME"
 				echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true" >&2
-				curl -kL "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
+				curl $SSL_SECURITY_OPTION -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
 				sync
 				echo ""
 			fi
@@ -353,7 +388,7 @@ then
 	echo "Linux system must be updated"
 	if [ ! -f "/media/fat/linux/unrar-nonfree" ]
 	then
-		UNRAR_DEB_URLS=$(curl -ksLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9./_+-]*_armhf\.deb\"' | sed 's/\"//g')
+		UNRAR_DEB_URLS=$(curl $SSL_SECURITY_OPTION -sLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9./_+-]*_armhf\.deb\"' | sed 's/\"//g')
 		MAX_VERSION=""
 		MAX_RELEASE_URL=""
 		for RELEASE_URL in $UNRAR_DEB_URLS; do
@@ -365,7 +400,7 @@ then
 			fi
 		done
 		echo "Downloading $UNRAR_DEBS_URL/$MAX_RELEASE_URL"
-		curl -kL "$UNRAR_DEBS_URL/$MAX_RELEASE_URL" -o "$TEMP_PATH/$MAX_RELEASE_URL"
+		curl $SSL_SECURITY_OPTION -L "$UNRAR_DEBS_URL/$MAX_RELEASE_URL" -o "$TEMP_PATH/$MAX_RELEASE_URL"
 		echo "Extracting unrar-nonfree"
 		ORIGINAL_DIR=$(pwd)
 		cd "$TEMP_PATH"
