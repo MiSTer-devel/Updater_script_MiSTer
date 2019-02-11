@@ -34,8 +34,6 @@ SCRIPT_URL="https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mi
 # any download will fail.
 ALLOW_INSECURE_SSH="true"
 
-
-
 #========= CODE STARTS HERE =========
 
 ORIGINAL_SCRIPT_PATH="$0"
