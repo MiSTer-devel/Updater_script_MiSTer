@@ -22,6 +22,8 @@
 # Version 1.0 - 2019-01-07 - First commit
 
 
+#========= OPTIONS ==================
+SCRIPT_URL="https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh"
 
 #========= ADVANCED OPTIONS =========
 # ALLOW_INSECURE_SSH="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
@@ -73,8 +75,8 @@ case $? in
 esac
 
 echo "Downloading and executing"
-echo "mister_updater.sh"
+echo "${SCRIPT_URL/*\//}"
 echo ""
-curl $SSL_SECURITY_OPTION -sLf https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh?raw=true | bash -
+curl $SSL_SECURITY_OPTION -sLf "${SCRIPT_URL}?raw=true" | bash -
 
 exit 0
