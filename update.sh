@@ -36,12 +36,12 @@ ALLOW_INSECURE_SSH="true"
 
 #========= CODE STARTS HERE =========
 ORIGINAL_SCRIPT_PATH="${0}"
-if [ "${ORIGINAL_SCRIPT_PATH}" == "bash" ]
+if [[ "${ORIGINAL_SCRIPT_PATH}" == "bash" ]]
 then
 	ORIGINAL_SCRIPT_PATH=$(ps | grep "^ *${PPID} " | grep -o "[^ ]*$")
 fi
 INI_PATH=${ORIGINAL_SCRIPT_PATH%.*}.ini
-if [ -f ${INI_PATH} ]
+if [[ -f ${INI_PATH} ]]
 then
 	eval "$(cat ${INI_PATH} | tr -d '\r')"
 fi
@@ -52,7 +52,7 @@ case $? in
 	0)
 		;;
 	60)
-		if [ "${ALLOW_INSECURE_SSH}" == "true" ]
+		if [[ "${ALLOW_INSECURE_SSH}" == "true" ]]
 		then
 			SSL_SECURITY_OPTION="--insecure"
 		else
