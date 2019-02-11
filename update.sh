@@ -74,6 +74,12 @@ esac
 echo "Downloading and executing"
 echo "${SCRIPT_URL/*\//}"
 echo ""
-curl ${SSL_SECURITY_OPTION} -sLf "${SCRIPT_URL}?raw=true" | bash -
+curl \
+	${SSL_SECURITY_OPTION} \
+	--fail \
+	--location \
+	--silent \
+	"${SCRIPT_URL}?raw=true" | \
+	bash -
 
 exit 0
