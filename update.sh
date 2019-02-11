@@ -76,3 +76,5 @@ echo "Downloading and executing"
 echo "mister_updater.sh"
 echo ""
 curl $SSL_SECURITY_OPTION -sLf https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh?raw=true | bash -
+
+exit 0
