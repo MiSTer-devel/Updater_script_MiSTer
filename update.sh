@@ -24,12 +24,12 @@
 
 
 #========= ADVANCED OPTIONS =========
-#ALLOW_INSECURE_SSH="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
-#is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads,
-#otherwise it will use --insecure option for disabling SSL certificate verification.
-#If CA certificates aren't installed it's advised to install them (i.e. using security_fixes.sh).
-#ALLOW_INSECURE_SSH="false" will never use --insecure option and if CA certificates aren't installed
-#any download will fail.
+# ALLOW_INSECURE_SSH="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
+# is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads,
+# otherwise it will use --insecure option for disabling SSL certificate verification.
+# If CA certificates aren't installed it's advised to install them (i.e. using security_fixes.sh).
+# ALLOW_INSECURE_SSH="false" will never use --insecure option and if CA certificates aren't installed
+# any download will fail.
 ALLOW_INSECURE_SSH="true"
 
 
