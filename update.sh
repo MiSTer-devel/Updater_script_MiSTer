@@ -35,16 +35,15 @@ SCRIPT_URL="https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mi
 ALLOW_INSECURE_SSH="true"
 
 #========= CODE STARTS HERE =========
-
-ORIGINAL_SCRIPT_PATH="$0"
-if [ "$ORIGINAL_SCRIPT_PATH" == "bash" ]
+ORIGINAL_SCRIPT_PATH="${0}"
+if [ "${ORIGINAL_SCRIPT_PATH}" == "bash" ]
 then
-	ORIGINAL_SCRIPT_PATH=$(ps | grep "^ *$PPID " | grep -o "[^ ]*$")
+	ORIGINAL_SCRIPT_PATH=$(ps | grep "^ *${PPID} " | grep -o "[^ ]*$")
 fi
 INI_PATH=${ORIGINAL_SCRIPT_PATH%.*}.ini
-if [ -f $INI_PATH ]
+if [ -f ${INI_PATH} ]
 then
-	eval "$(cat $INI_PATH | tr -d '\r')"
+	eval "$(cat ${INI_PATH} | tr -d '\r')"
 fi
 
 SSL_SECURITY_OPTION=""
@@ -53,7 +52,7 @@ case $? in
 	0)
 		;;
 	60)
-		if [ "$ALLOW_INSECURE_SSH" == "true" ]
+		if [ "${ALLOW_INSECURE_SSH}" == "true" ]
 		then
 			SSL_SECURITY_OPTION="--insecure"
 		else
@@ -75,6 +74,6 @@ esac
 echo "Downloading and executing"
 echo "${SCRIPT_URL/*\//}"
 echo ""
-curl $SSL_SECURITY_OPTION -sLf "${SCRIPT_URL}?raw=true" | bash -
+curl ${SSL_SECURITY_OPTION} -sLf "${SCRIPT_URL}?raw=true" | bash -
 
 exit 0
