@@ -39,6 +39,8 @@ ORIGINAL_SCRIPT_PATH="${0}"
 if [[ "${ORIGINAL_SCRIPT_PATH}" == "bash" ]]
 then
 	ORIGINAL_SCRIPT_PATH=$(ps | grep "^ *${PPID} " | grep -o "[^ ]*$")
+	# PPID is not set so grep will match all lines starting with a space.
+	# Do you mean to use "$$" to get the PID of the current process?
 fi
 INI_PATH=${ORIGINAL_SCRIPT_PATH%.*}.ini
 if [[ -f ${INI_PATH} ]]
