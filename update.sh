@@ -35,13 +35,10 @@ SCRIPT_URL="https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mi
 ALLOW_INSECURE_SSH="true"
 
 #========= CODE STARTS HERE =========
+# get the name of the script, or of the parent script if called through a 'curl ... | bash -'
 ORIGINAL_SCRIPT_PATH="${0}"
-if [[ "${ORIGINAL_SCRIPT_PATH}" == "bash" ]]
-then
-	ORIGINAL_SCRIPT_PATH=$(ps | grep "^ *${PPID} " | grep -o "[^ ]*$")
-	# PPID is not set so grep will match all lines starting with a space.
-	# Do you mean to use "$$" to get the PID of the current process?
-fi
+[[ "${ORIGINAL_SCRIPT_PATH}" == "bash" ]] && \
+	ORIGINAL_SCRIPT_PATH="$(ps --no-headers --format comm= --pid ${PPID})"
 INI_PATH=${ORIGINAL_SCRIPT_PATH%.*}.ini
 if [[ -f ${INI_PATH} ]]
 then
