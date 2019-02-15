@@ -42,7 +42,7 @@ ORIGINAL_SCRIPT_PATH="${0}"
 INI_PATH="${ORIGINAL_SCRIPT_PATH%.*}.ini"
 if [[ -f "${INI_PATH}" ]]
 then
-	eval "$(cat "${INI_PATH}" | tr -d '\r')"
+	eval "$(tr -d '\r' < "${INI_PATH}")"
 fi
 
 SSL_SECURITY_OPTION=""
