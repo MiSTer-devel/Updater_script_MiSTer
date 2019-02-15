@@ -39,10 +39,14 @@ ALLOW_INSECURE_SSH="true"
 ORIGINAL_SCRIPT_PATH="${0}"
 [[ "${ORIGINAL_SCRIPT_PATH}" == "bash" ]] && \
 	ORIGINAL_SCRIPT_PATH="$(ps --no-headers --format comm= --pid ${PPID})"
+
+# ini file can contain user defined variables (as bash commands)
+# Load and execute the content of the ini file, if there is one
 INI_PATH="${ORIGINAL_SCRIPT_PATH%.*}.ini"
 if [[ -f "${INI_PATH}" ]]
 then
-	eval "$(tr -d '\r' < "${INI_PATH}")"
+	dos2unix "${INI_PATH}"
+	source "${INI_PATH}"
 fi
 
 SSL_SECURITY_OPTION=""
