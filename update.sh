@@ -43,11 +43,7 @@ ORIGINAL_SCRIPT_PATH="${0}"
 # ini file can contain user defined variables (as bash commands)
 # Load and execute the content of the ini file, if there is one
 INI_PATH="${ORIGINAL_SCRIPT_PATH%.*}.ini"
-if [[ -f "${INI_PATH}" ]]
-then
-	dos2unix "${INI_PATH}"
-	source "${INI_PATH}"
-fi
+[[ -f "${INI_PATH}" ]] && source <(dos2unix < "${INI_PATH}")
 
 # test network and https by pinging the most available website 
 SSL_SECURITY_OPTION=""
