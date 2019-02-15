@@ -46,7 +46,7 @@ then
 fi
 
 SSL_SECURITY_OPTION=""
-curl -q https://google.com > /dev/null 2>&1
+curl --silent https://google.com > /dev/null 2>&1
 case $? in
 	0)
 		;;
