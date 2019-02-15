@@ -49,6 +49,7 @@ then
 	source "${INI_PATH}"
 fi
 
+# test network and https by pinging the most available website 
 SSL_SECURITY_OPTION=""
 curl --silent https://google.com > /dev/null 2>&1
 case $? in
@@ -74,6 +75,7 @@ case $? in
 		;;
 esac
 
+# download and execute the latest mister_updater.sh
 echo "Downloading and executing"
 echo "${SCRIPT_URL/*\//}"
 echo ""
