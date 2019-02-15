@@ -39,10 +39,10 @@ ALLOW_INSECURE_SSH="true"
 ORIGINAL_SCRIPT_PATH="${0}"
 [[ "${ORIGINAL_SCRIPT_PATH}" == "bash" ]] && \
 	ORIGINAL_SCRIPT_PATH="$(ps --no-headers --format comm= --pid ${PPID})"
-INI_PATH=${ORIGINAL_SCRIPT_PATH%.*}.ini
-if [[ -f ${INI_PATH} ]]
+INI_PATH="${ORIGINAL_SCRIPT_PATH%.*}.ini"
+if [[ -f "${INI_PATH}" ]]
 then
-	eval "$(cat ${INI_PATH} | tr -d '\r')"
+	eval "$(cat "${INI_PATH}" | tr -d '\r')"
 fi
 
 SSL_SECURITY_OPTION=""
