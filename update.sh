@@ -38,7 +38,7 @@ ALLOW_INSECURE_SSH="true"
 # get the name of the script, or of the parent script if called through a 'curl ... | bash -'
 ORIGINAL_SCRIPT_PATH="${0}"
 [[ "${ORIGINAL_SCRIPT_PATH}" == "bash" ]] && \
-	ORIGINAL_SCRIPT_PATH="$(ps --no-headers --format comm= --pid ${PPID})"
+	ORIGINAL_SCRIPT_PATH="$(ps -o comm,pid | awk -v PPID=${PPID} '$2 == PPID {print $1}')"
 
 # ini file can contain user defined variables (as bash commands)
 # Load and execute the content of the ini file, if there is one
