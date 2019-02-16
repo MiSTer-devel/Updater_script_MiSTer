@@ -22,10 +22,10 @@
 # Version 1.0 - 2019-01-07 - First commit
 
 
-#========= OPTIONS ==================
+# ========= OPTIONS ==================
 SCRIPT_URL="https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh"
 
-#========= ADVANCED OPTIONS =========
+# ========= ADVANCED OPTIONS =========
 # ALLOW_INSECURE_SSH="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
 # is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads,
 # otherwise it will use --insecure option for disabling SSL certificate verification.
@@ -34,7 +34,7 @@ SCRIPT_URL="https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mi
 # any download will fail.
 ALLOW_INSECURE_SSH="true"
 
-#========= CODE STARTS HERE =========
+# ========= CODE STARTS HERE =========
 # get the name of the script, or of the parent script if called through a 'curl ... | bash -'
 ORIGINAL_SCRIPT_PATH="${0}"
 [[ "${ORIGINAL_SCRIPT_PATH}" == "bash" ]] && \
