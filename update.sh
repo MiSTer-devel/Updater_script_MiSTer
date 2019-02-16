@@ -43,7 +43,13 @@ ORIGINAL_SCRIPT_PATH="${0}"
 # ini file can contain user defined variables (as bash commands)
 # Load and execute the content of the ini file, if there is one
 INI_PATH="${ORIGINAL_SCRIPT_PATH%.*}.ini"
-[[ -f "${INI_PATH}" ]] && source <(dos2unix < "${INI_PATH}")
+if [[ -f "${INI_PATH}" ]] ; then
+	TMP=$(mktemp)
+	# preventively eliminate exit command and DOS-specific format 
+	grep -v "^exit" "${INI_PATH}" | dos2unix > ${TMP} 2> /dev/null
+	source ${TMP}
+	rm -f ${TMP}
+fi
 
 # test network and https by pinging the most available website 
 SSL_SECURITY_OPTION=""
