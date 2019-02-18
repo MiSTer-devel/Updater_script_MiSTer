@@ -45,8 +45,8 @@ ORIGINAL_SCRIPT_PATH="${0}"
 INI_PATH="${ORIGINAL_SCRIPT_PATH%.*}.ini"
 if [[ -f "${INI_PATH}" ]] ; then
 	TMP=$(mktemp)
-	# preventively eliminate exit command and DOS-specific format 
-	grep -v "^exit" "${INI_PATH}" | dos2unix > ${TMP} 2> /dev/null
+	# preventively eliminate DOS-specific format and exit command  
+	dos2unix < "${INI_PATH}" 2> /dev/null | grep -v "^exit" > ${TMP}
 	source ${TMP}
 	rm -f ${TMP}
 fi
