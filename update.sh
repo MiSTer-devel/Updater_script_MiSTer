@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 2.1 - 2019-02-23 - Code review by frederic-mahe, now the script is more standardized and elegant, thank you very much; ALLOW_INSECURE_SSH renamed to ALLOW_INSECURE_SSL.
 # Version 2.0 - 2019-02-02 - Added ALLOW_INSECURE_SSH option: "true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html ) is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads, otherwise it will use --insecure option for disabling SSL certificate verification. If CA certificates aren't installed it's advised to install them (i.e. using security_fixes.sh). "false" will never use --insecure option and if CA certificates aren't installed any download will fail.
 # Version 1.0 - 2019-01-07 - First commit
 
@@ -26,13 +27,13 @@
 SCRIPT_URL="https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh"
 
 # ========= ADVANCED OPTIONS =========
-# ALLOW_INSECURE_SSH="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
+# ALLOW_INSECURE_SSL="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
 # is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads,
 # otherwise it will use --insecure option for disabling SSL certificate verification.
 # If CA certificates aren't installed it's advised to install them (i.e. using security_fixes.sh).
-# ALLOW_INSECURE_SSH="false" will never use --insecure option and if CA certificates aren't installed
+# ALLOW_INSECURE_SSL="false" will never use --insecure option and if CA certificates aren't installed
 # any download will fail.
-ALLOW_INSECURE_SSH="true"
+ALLOW_INSECURE_SSL="true"
 
 # ========= CODE STARTS HERE =========
 # get the name of the script, or of the parent script if called through a 'curl ... | bash -'
@@ -58,7 +59,7 @@ case $? in
 	0)
 		;;
 	60)
-		if [[ "${ALLOW_INSECURE_SSH}" == "true" ]]
+		if [[ "${ALLOW_INSECURE_SSL}" == "true" ]]
 		then
 			SSL_SECURITY_OPTION="--insecure"
 		else
