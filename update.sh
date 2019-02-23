@@ -22,38 +22,43 @@
 # Version 1.0 - 2019-01-07 - First commit
 
 
+# ========= OPTIONS ==================
+SCRIPT_URL="https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh"
 
-#========= ADVANCED OPTIONS =========
-#ALLOW_INSECURE_SSH="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
-#is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads,
-#otherwise it will use --insecure option for disabling SSL certificate verification.
-#If CA certificates aren't installed it's advised to install them (i.e. using security_fixes.sh).
-#ALLOW_INSECURE_SSH="false" will never use --insecure option and if CA certificates aren't installed
-#any download will fail.
+# ========= ADVANCED OPTIONS =========
+# ALLOW_INSECURE_SSH="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
+# is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads,
+# otherwise it will use --insecure option for disabling SSL certificate verification.
+# If CA certificates aren't installed it's advised to install them (i.e. using security_fixes.sh).
+# ALLOW_INSECURE_SSH="false" will never use --insecure option and if CA certificates aren't installed
+# any download will fail.
 ALLOW_INSECURE_SSH="true"
 
+# ========= CODE STARTS HERE =========
+# get the name of the script, or of the parent script if called through a 'curl ... | bash -'
+ORIGINAL_SCRIPT_PATH="${0}"
+[[ "${ORIGINAL_SCRIPT_PATH}" == "bash" ]] && \
+	ORIGINAL_SCRIPT_PATH="$(ps -o comm,pid | awk -v PPID=${PPID} '$2 == PPID {print $1}')"
 
-
-#========= CODE STARTS HERE =========
-
-ORIGINAL_SCRIPT_PATH="$0"
-if [ "$ORIGINAL_SCRIPT_PATH" == "bash" ]
-then
-	ORIGINAL_SCRIPT_PATH=$(ps | grep "^ *$PPID " | grep -o "[^ ]*$")
+# ini file can contain user defined variables (as bash commands)
+# Load and execute the content of the ini file, if there is one
+INI_PATH="${ORIGINAL_SCRIPT_PATH%.*}.ini"
+if [[ -f "${INI_PATH}" ]] ; then
+	TMP=$(mktemp)
+	# preventively eliminate DOS-specific format and exit command  
+	dos2unix < "${INI_PATH}" 2> /dev/null | grep -v "^exit" > ${TMP}
+	source ${TMP}
+	rm -f ${TMP}
 fi
-INI_PATH=${ORIGINAL_SCRIPT_PATH%.*}.ini
-if [ -f $INI_PATH ]
-then
-	eval "$(cat $INI_PATH | tr -d '\r')"
-fi
 
+# test network and https by pinging the most available website 
 SSL_SECURITY_OPTION=""
-curl -q https://google.com &>/dev/null
+curl --silent https://google.com > /dev/null 2>&1
 case $? in
 	0)
 		;;
 	60)
-		if [ "$ALLOW_INSECURE_SSH" == "true" ]
+		if [[ "${ALLOW_INSECURE_SSH}" == "true" ]]
 		then
 			SSL_SECURITY_OPTION="--insecure"
 		else
@@ -72,7 +77,16 @@ case $? in
 		;;
 esac
 
+# download and execute the latest mister_updater.sh
 echo "Downloading and executing"
-echo "mister_updater.sh"
+echo "${SCRIPT_URL/*\//}"
 echo ""
-curl $SSL_SECURITY_OPTION -sLf https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh?raw=true | bash -
+curl \
+	${SSL_SECURITY_OPTION} \
+	--fail \
+	--location \
+	--silent \
+	"${SCRIPT_URL}?raw=true" | \
+	bash -
+
+exit 0
