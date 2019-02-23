@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 2.0.2 - 2019-02-23 - ALLOW_INSECURE_SSH renamed to ALLOW_INSECURE_SSL.
 # Version 2.0.1 - 2019-02-03 - Cosmetic changes.
 # Version 2.0 - 2019-02-02 - Added ALLOW_INSECURE_SSH option: "true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html ) is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads, otherwise it will use --insecure option for disabling SSL certificate verification. If CA certificates aren't installed it's advised to install them (i.e. using security_fixes.sh). "false" will never use --insecure option and if CA certificates aren't installed any download will fail. The script will download and update the simple one line update.sh with a newer one (same ALLOW_INSECURE_SSH option) when needed.
 # Version 1.8.2 - 2019-01-21 - Changed ARCADE_HACKS_PATH to ARCADE_ALT_PATHS: not it supports a pipe "|" separated list of directories containing alternative arcade cores.
@@ -85,13 +86,13 @@ REPOSITORIES_FILTER=""
 
 
 #========= ADVANCED OPTIONS =========
-#ALLOW_INSECURE_SSH="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
+#ALLOW_INSECURE_SSL="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
 #is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads,
 #otherwise it will use --insecure option for disabling SSL certificate verification.
 #If CA certificates aren't installed it's advised to install them (i.e. using security_fixes.sh).
-#ALLOW_INSECURE_SSH="false" will never use --insecure option and if CA certificates aren't installed
+#ALLOW_INSECURE_SSL="false" will never use --insecure option and if CA certificates aren't installed
 #any download will fail.
-ALLOW_INSECURE_SSH="true"
+ALLOW_INSECURE_SSL="true"
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
 SCRIPTS_PATH="#Scripts"
 WORK_PATH="/media/fat/$SCRIPTS_PATH/.mister_updater"
@@ -127,7 +128,7 @@ case $? in
 	0)
 		;;
 	60)
-		if [ "$ALLOW_INSECURE_SSH" == "true" ]
+		if [ "$ALLOW_INSECURE_SSL" == "true" ]
 		then
 			SSL_SECURITY_OPTION="--insecure"
 		else
