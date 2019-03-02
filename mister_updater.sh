@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 2.1 - 2019-03-02 - Linux updating now supports subdirectories under /media/fat/linux.
 # Version 2.0.2 - 2019-02-23 - ALLOW_INSECURE_SSH renamed to ALLOW_INSECURE_SSL.
 # Version 2.0.1 - 2019-02-03 - Cosmetic changes.
 # Version 2.0 - 2019-02-02 - Added ALLOW_INSECURE_SSH option: "true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html ) is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads, otherwise it will use --insecure option for disabling SSL certificate verification. If CA certificates aren't installed it's advised to install them (i.e. using security_fixes.sh). "false" will never use --insecure option and if CA certificates aren't installed any download will fail. The script will download and update the simple one line update.sh with a newer one (same ALLOW_INSECURE_SSH option) when needed.
@@ -424,7 +425,7 @@ then
 				rm -R "/media/fat/linux.update" > /dev/null 2>&1
 			fi
 			mkdir "/media/fat/linux.update"
-			if /media/fat/linux/unrar-nonfree e -y "$SD_INSTALLER_PATH" files/linux/* /media/fat/linux.update
+			if /media/fat/linux/unrar-nonfree x -y "$SD_INSTALLER_PATH" files/linux/* /media/fat/linux.update
 			then
 				echo ""
 				echo "======================================================================================"
@@ -440,12 +441,12 @@ then
 				rm "$SD_INSTALLER_PATH" > /dev/null 2>&1
 				touch "$SD_INSTALLER_PATH"
 				sync
-				mv "/media/fat/linux.update/"*boot* "/media/fat/linux/"
+				mv "/media/fat/linux.update/files/linux/"*boot* "/media/fat/linux/"
 				sync
 				/media/fat/linux/updateboot
 				rm "/media/fat/linux/linux.img" > /dev/null 2>&1
 				sync
-				mv "/media/fat/linux.update/"* "/media/fat/linux/"
+				mv "/media/fat/linux.update/files/linux/"* "/media/fat/linux/"
 			fi
 			rm -R "/media/fat/linux.update" > /dev/null 2>&1
 			sync
