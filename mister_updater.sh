@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 2.1.1 - 2019-03-03 - Improved date-time parsing for additional repositories; added MiSTer_MidiLink installation scripts to ADDITIONAL_REPOSITORIES.
 # Version 2.1 - 2019-03-02 - Linux updating now supports subdirectories under /media/fat/linux.
 # Version 2.0.2 - 2019-02-23 - ALLOW_INSECURE_SSH renamed to ALLOW_INSECURE_SSL.
 # Version 2.0.1 - 2019-02-03 - Cosmetic changes.
@@ -71,7 +72,7 @@ DELETE_OLD_FILES="true"
 #a string value, i.e. "NewCores", for downloading new cores in the "NewCores" subdirectory.
 DOWNLOAD_NEW_CORES="true"
 
-#Specifies if the “Arcade-“ prefix will be removed in local arcade cores.
+#Specifies if the "Arcade-" prefix will be removed in local arcade cores.
 REMOVE_ARCADE_PREFIX="true"
 
 #A space separated list of filters for the online repositories;
@@ -98,7 +99,7 @@ MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
 SCRIPTS_PATH="#Scripts"
 WORK_PATH="/media/fat/$SCRIPTS_PATH/.mister_updater"
 #Comment next line if you don't want to download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
-ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|$BASE_PATH/GameBoy" "https://github.com/MiSTer-devel/CIFS_MiSTer|sh inc|$BASE_PATH/$SCRIPTS_PATH" "https://github.com/MiSTer-devel/Scripts_MiSTer|sh inc|$BASE_PATH/$SCRIPTS_PATH" )
+ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters" "https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|$BASE_PATH/GameBoy" "https://github.com/MiSTer-devel/CIFS_MiSTer|sh inc|$BASE_PATH/$SCRIPTS_PATH" "https://github.com/MiSTer-devel/Scripts_MiSTer|sh inc|$BASE_PATH/$SCRIPTS_PATH" "https://github.com/bbond007/MiSTer_MidiLink/tree/master/INSTALL|sh inc|$BASE_PATH/$SCRIPTS_PATH" )
 UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
 #EXPERIMENTAL: Uncomment/Comment next line if you want or don't want the Kernel, the Linux filesystem and the bootloader to be updated; do it at your own risk!
 #SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
@@ -358,8 +359,15 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	echo "URL: $ADDITIONAL_FILES_URL" >&2
 	echo ""
 	CONTENT_TDS=$(curl $SSL_SECURITY_OPTION -sLf "$ADDITIONAL_FILES_URL")
-	ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
+	ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
 	ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
+	for DATETIME_INDEX in "${!ADDITIONAL_FILE_DATETIMES[@]}"; do 
+		ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]=$(echo "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
+		if [ "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" == "" ]
+		then
+			ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]="${ADDITIONAL_FILE_DATETIMES[$((DATETIME_INDEX-1))]}"
+		fi
+	done
 	CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content"/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
 	CONTENT_TD_INDEX=0
 	for CONTENT_TD in $CONTENT_TDS; do
