@@ -6,12 +6,12 @@ You can have many differently named copies of [update.sh](https://github.com/MiS
 - you can make an *update_arcade.sh* with its *[update_arcade.ini](https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/examples/update_arcade.ini?raw=true)* using these settings (simply copy this code in an empty text file named *update_arcade.ini* and put it in the same directory as *update_arcade.sh*):
 ```
 REPOSITORIES_FILTER="arcade-cores"
-ADDITIONAL_REPOSITORIES=""
+ADDITIONAL_REPOSITORIES=( "" )
 ```
 - you can make an *update_commodore.sh* with its *[update_commodore.ini](https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/examples/update_commodore.ini?raw=true)* using these settings:
 ```
 REPOSITORIES_FILTER="PET2001 VIC20 C64 C16 Minimig"
-ADDITIONAL_REPOSITORIES=""
+ADDITIONAL_REPOSITORIES=( "" )
 ```
 - you can make an *update_additional_repositories.sh* with its *[update_additional_repositories.ini](https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/examples/update_additional_repositories.ini?raw=true)* using these settings:
 ```
@@ -20,6 +20,6 @@ REPOSITORIES_FILTER="ZZZZZZZZZ"
 - you can make an *update_fonts.sh* with its *[update_fonts.ini](https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/examples/update_fonts.ini?raw=true)* using these settings:
 ```
 REPOSITORIES_FILTER="ZZZZZZZZZ"
-ADDITIONAL_REPOSITORIES="https://github.com/MiSTer-devel/Fonts_MiSTer|pf|$BASE_PATH/font"
+ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Fonts_MiSTer|pf|$BASE_PATH/font" )
 ```
 I take no responsibility for any data loss or anything, if your DE10-Nano catches fire it’s up to you: **use the script at your own risk**.
