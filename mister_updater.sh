@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 2.1.4 - 2019-04-01 - Implemented a safer Linux system updating strategy: linux.img is moved as the very last step in the process.
 # Version 2.1.3 - 2019-03-26 - Cosmetic change in ADDITIONAL_REPOSITORIES declaration; added commented (not active) fonts additional repository for reference.
 # Version 2.1.2 - 2019-03-03 - Corrected a bug in date-time parsing for additional repositories.
 # Version 2.1.1 - 2019-03-03 - Improved date-time parsing for additional repositories; added MiSTer_MidiLink installation scripts to ADDITIONAL_REPOSITORIES.
@@ -458,15 +459,18 @@ then
 				rm "$SD_INSTALLER_PATH" > /dev/null 2>&1
 				touch "$SD_INSTALLER_PATH"
 				sync
-				mv "/media/fat/linux.update/files/linux/"*boot* "/media/fat/linux/"
+				mv -f "/media/fat/linux.update/files/linux/linux.img" "/media/fat/linux/linux.img.new"
+				mv -f "/media/fat/linux.update/files/linux/"* "/media/fat/linux/"
+				rm -R "/media/fat/linux.update" > /dev/null 2>&1
 				sync
 				/media/fat/linux/updateboot
-				rm "/media/fat/linux/linux.img" > /dev/null 2>&1
 				sync
-				mv "/media/fat/linux.update/files/linux/"* "/media/fat/linux/"
+				mv -f "/media/fat/linux/linux.img.new" "/media/fat/linux/linux.img"
+				sync
+			else
+				rm -R "/media/fat/linux.update" > /dev/null 2>&1
+				sync
 			fi
-			rm -R "/media/fat/linux.update" > /dev/null 2>&1
-			sync
 			REBOOT_NEEDED="true"
 		else
 			echo "Downloaded installer RAR is broken, deleting $SD_INSTALLER_PATH"
