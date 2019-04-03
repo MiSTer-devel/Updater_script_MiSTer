@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 2.1.5 - 2019-04-03 - Improved date-time parsing for additional repositories.
 # Version 2.1.4 - 2019-04-01 - Implemented a safer Linux system updating strategy: linux.img is moved as the very last step in the process.
 # Version 2.1.3 - 2019-03-26 - Cosmetic change in ADDITIONAL_REPOSITORIES declaration; added commented (not active) fonts additional repository for reference.
 # Version 2.1.2 - 2019-03-03 - Corrected a bug in date-time parsing for additional repositories.
@@ -367,7 +368,12 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	fi
 	echo "Checking $(echo $ADDITIONAL_FILES_URL | sed 's/.*\///g' | awk '{ print toupper( substr( $0, 1, 1 ) ) substr( $0, 2 ); }')"
 	echo "URL: $ADDITIONAL_FILES_URL" >&2
-	echo ""
+	if echo "$ADDITIONAL_FILES_URL" | grep -q "\/tree\/master\/"
+	then
+		ADDITIONAL_FILES_URL=$(echo "$ADDITIONAL_FILES_URL" | sed 's/\/tree\/master\//\/file-list\/master\//g')
+	else
+		ADDITIONAL_FILES_URL="$ADDITIONAL_FILES_URL/file-list/master"
+	fi
 	CONTENT_TDS=$(curl $SSL_SECURITY_OPTION -sLf "$ADDITIONAL_FILES_URL")
 	ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
 	ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
@@ -403,6 +409,7 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 		fi
 		CONTENT_TD_INDEX=$((CONTENT_TD_INDEX+1))
 	done
+	echo ""
 done
 
 if [ "$SD_INSTALLER_PATH" != "" ]
