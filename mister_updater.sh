@@ -169,12 +169,16 @@ then
 	fi
 fi
 
-if [ "$NTP_SERVER" != "" ]
-then
+## sync with a public time server
+if [[ -n "${NTP_SERVER}" ]] ; then
 	echo "Syncing date and time with"
-	echo "$NTP_SERVER"$'\n'
-	ntpdate -s -b -u $NTP_SERVER
+	echo "${NTP_SERVER}"
+	# (-b) force time reset, (-s) write output to syslog, (-u) use
+	# unprivileged port for outgoing packets to workaround firewalls
+	ntpdate -b -s -u "${NTP_SERVER}"
+    echo
 fi
+
 
 mkdir -p "${CORE_CATEGORY_PATHS[@]}"
 
