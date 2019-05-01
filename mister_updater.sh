@@ -138,13 +138,13 @@ then
 	eval "$(cat $INI_PATH | tr -d '\r')"
 fi
 
-if [ -d "${OLD_SCRIPTS_PATH}" ] && [ ! -d "${SCRIPTS_PATH}" ]
+if [ -d "${BASE_PATH}/${OLD_SCRIPTS_PATH}" ] && [ ! -d "${BASE_PATH}/${SCRIPTS_PATH}" ]
 then
-	mv "${OLD_SCRIPTS_PATH}" "${SCRIPTS_PATH}"
+	mv "${BASE_PATH}/${OLD_SCRIPTS_PATH}" "${BASE_PATH}/${SCRIPTS_PATH}"
 	echo "Moved"
-	echo "${OLD_SCRIPTS_PATH}"
+	echo "${BASE_PATH}/${OLD_SCRIPTS_PATH}"
 	echo "to"
-	echo "${SCRIPTS_PATH}"
+	echo "${BASE_PATH}/${SCRIPTS_PATH}"
 	echo "please relaunch the script."
 	echo exit 3
 fi
