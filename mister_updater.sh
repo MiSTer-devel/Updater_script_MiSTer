@@ -99,6 +99,7 @@ REPOSITORIES_FILTER=""
 #ALLOW_INSECURE_SSL="false" will never use --insecure option and if CA certificates aren't installed
 #any download will fail.
 ALLOW_INSECURE_SSL="true"
+CURL_RETRY="--connect-timeout 15 --max-time 120 --retry 3 --retry-delay 5"
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
 SCRIPTS_PATH="#Scripts"
 WORK_PATH="/media/fat/$SCRIPTS_PATH/.mister_updater"
@@ -136,7 +137,7 @@ then
 fi
 
 SSL_SECURITY_OPTION=""
-curl -q https://google.com &>/dev/null
+curl $CURL_RETRY -q https://google.com &>/dev/null
 case $? in
 	0)
 		;;
@@ -161,11 +162,11 @@ case $? in
 esac
 if [ "$SSL_SECURITY_OPTION" == "" ]
 then
-	if [ "$(cat "$ORIGINAL_SCRIPT_PATH" | grep "^[^#].*")" == "curl -ksLf https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh?raw=true | bash -" ]
+	if [ "$(cat "$ORIGINAL_SCRIPT_PATH" | grep "^[^#].*")" == "curl $CURL_RETRY -ksLf https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh?raw=true | bash -" ]
 	then
 		echo "Downloading $(echo $ORIGINAL_SCRIPT_PATH | sed 's/.*\///g')"
 		echo ""
-		curl $SSL_SECURITY_OPTION -L "https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/update.sh?raw=true" -o "$ORIGINAL_SCRIPT_PATH"
+		curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/update.sh?raw=true" -o "$ORIGINAL_SCRIPT_PATH"
 	fi
 fi
 
@@ -187,7 +188,7 @@ then
 	mkdir -p "${NEW_CORE_CATEGORY_PATHS[@]}"
 fi
 
-CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki"| awk '/user-content-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
+CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki"| awk '/user-content-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
 CORE_CATEGORY="-"
 SD_INSTALLER_PATH=""
 REBOOT_NEEDED="false"
@@ -209,9 +210,9 @@ for CORE_URL in $CORE_URLS; do
 			then
 				RELEASES_URL="$CORE_URL"
 			else
-				RELEASES_URL=https://github.com$(curl $SSL_SECURITY_OPTION -sLf "$CORE_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
+				RELEASES_URL=https://github.com$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$CORE_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
 			fi
-			RELEASE_URLS=$(curl $SSL_SECURITY_OPTION -sLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?')
+			RELEASE_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?')
 			
 			MAX_VERSION=""
 			MAX_RELEASE_URL=""
@@ -294,7 +295,7 @@ for CORE_URL in $CORE_URLS; do
 				then
 					echo "Downloading $FILE_NAME"
 					echo "URL: https://github.com$MAX_RELEASE_URL?raw=true" >&2
-					curl $SSL_SECURITY_OPTION -L "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
+					curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
 					if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
 					then
 						DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
@@ -374,7 +375,7 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	else
 		ADDITIONAL_FILES_URL="$ADDITIONAL_FILES_URL/file-list/master"
 	fi
-	CONTENT_TDS=$(curl $SSL_SECURITY_OPTION -sLf "$ADDITIONAL_FILES_URL")
+	CONTENT_TDS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$ADDITIONAL_FILES_URL")
 	ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
 	ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
 	for DATETIME_INDEX in "${!ADDITIONAL_FILE_DATETIMES[@]}"; do 
@@ -402,7 +403,7 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 			then
 				echo "Downloading $ADDITIONAL_FILE_NAME"
 				echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true" >&2
-				curl $SSL_SECURITY_OPTION -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
+				curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
 				sync
 				echo ""
 			fi
@@ -417,7 +418,7 @@ then
 	echo "Linux system must be updated"
 	if [ ! -f "/media/fat/linux/unrar-nonfree" ]
 	then
-		UNRAR_DEB_URLS=$(curl $SSL_SECURITY_OPTION -sLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9./_+-]*_armhf\.deb\"' | sed 's/\"//g')
+		UNRAR_DEB_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9./_+-]*_armhf\.deb\"' | sed 's/\"//g')
 		MAX_VERSION=""
 		MAX_RELEASE_URL=""
 		for RELEASE_URL in $UNRAR_DEB_URLS; do

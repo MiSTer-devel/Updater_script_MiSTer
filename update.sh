@@ -35,6 +35,9 @@ SCRIPT_URL="https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mi
 # any download will fail.
 ALLOW_INSECURE_SSL="true"
 
+# ======== CURL RETRY OPTIONS ========
+CURL_RETRY="--connect-timeout 15 --max-time 120 --retry 3 --retry-delay 5"
+
 # ========= CODE STARTS HERE =========
 # get the name of the script, or of the parent script if called through a 'curl ... | bash -'
 ORIGINAL_SCRIPT_PATH="${0}"
@@ -54,7 +57,7 @@ fi
 
 # test network and https by pinging the most available website 
 SSL_SECURITY_OPTION=""
-curl --silent https://google.com > /dev/null 2>&1
+curl ${CURL_RETRY} --silent https://google.com > /dev/null 2>&1
 case $? in
 	0)
 		;;
@@ -83,6 +86,7 @@ echo "Downloading and executing"
 echo "${SCRIPT_URL/*\//}"
 echo ""
 curl \
+	${CURL_RETRY} \
 	${SSL_SECURITY_OPTION} \
 	--fail \
 	--location \
