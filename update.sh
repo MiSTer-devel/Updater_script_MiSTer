@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 2.1 - 2019-02-23 - CURL RETRY OPTIONS by wesclemens, now the script has a timeout and retry logic to prevent spotty connections causing the update to lockup; thank you very much.
 # Version 2.1 - 2019-02-23 - Code review by frederic-mahe, now the script is more standardized and elegant, thank you very much; ALLOW_INSECURE_SSH renamed to ALLOW_INSECURE_SSL.
 # Version 2.0 - 2019-02-02 - Added ALLOW_INSECURE_SSH option: "true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html ) is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads, otherwise it will use --insecure option for disabling SSL certificate verification. If CA certificates aren't installed it's advised to install them (i.e. using security_fixes.sh). "false" will never use --insecure option and if CA certificates aren't installed any download will fail.
 # Version 1.0 - 2019-01-07 - First commit
@@ -35,7 +36,6 @@ SCRIPT_URL="https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mi
 # any download will fail.
 ALLOW_INSECURE_SSL="true"
 
-# ======== CURL RETRY OPTIONS ========
 CURL_RETRY="--connect-timeout 15 --max-time 120 --retry 3 --retry-delay 5"
 
 # ========= CODE STARTS HERE =========
