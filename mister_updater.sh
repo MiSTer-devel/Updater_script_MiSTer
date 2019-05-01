@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 2.2 - 2019-05-01 - CURL RETRY OPTIONS by wesclemens, now the script has a timeout and retry logic to prevent spotty connections causing the update to lockup, thank you very much; review time sync test by frederic-mahe, thank you very much; now the scripts default path is /media/fat/Scripts, moving #Scripts directory there when needed.
 # Version 2.1.5 - 2019-04-03 - Improved date-time parsing for additional repositories.
 # Version 2.1.4 - 2019-04-01 - Implemented a safer Linux system updating strategy: linux.img is moved as the very last step in the process.
 # Version 2.1.3 - 2019-03-26 - Cosmetic change in ADDITIONAL_REPOSITORIES declaration; added commented (not active) fonts additional repository for reference.
@@ -102,6 +103,7 @@ ALLOW_INSECURE_SSL="true"
 CURL_RETRY="--connect-timeout 15 --max-time 120 --retry 3 --retry-delay 5"
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
 SCRIPTS_PATH="#Scripts"
+OLD_SCRIPTS_PATH="Scripts"
 WORK_PATH="/media/fat/$SCRIPTS_PATH/.mister_updater"
 #Comment (or uncomment) next lines if you don't want (or want) to update/download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
 ADDITIONAL_REPOSITORIES=(
@@ -134,6 +136,17 @@ INI_PATH=${ORIGINAL_SCRIPT_PATH%.*}.ini
 if [ -f $INI_PATH ]
 then
 	eval "$(cat $INI_PATH | tr -d '\r')"
+fi
+
+if [ -d "${OLD_SCRIPTS_PATH}" ] && [ ! -f "${SCRIPTS_PATH}" ]
+then
+	mv "${OLD_SCRIPTS_PATH}" "${SCRIPTS_PATH}"
+	echo "Moved"
+	echo "${OLD_SCRIPTS_PATH}"
+	echo "to"
+	echo "${SCRIPTS_PATH}"
+	echo "please relaunch the script."
+	echo exit 3
 fi
 
 SSL_SECURITY_OPTION=""
