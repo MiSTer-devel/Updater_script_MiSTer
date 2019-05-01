@@ -102,8 +102,8 @@ REPOSITORIES_FILTER=""
 ALLOW_INSECURE_SSL="true"
 CURL_RETRY="--connect-timeout 15 --max-time 120 --retry 3 --retry-delay 5"
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
-SCRIPTS_PATH="#Scripts"
-OLD_SCRIPTS_PATH="Scripts"
+SCRIPTS_PATH="Scripts"
+OLD_SCRIPTS_PATH="#Scripts"
 WORK_PATH="/media/fat/$SCRIPTS_PATH/.mister_updater"
 #Comment (or uncomment) next lines if you don't want (or want) to update/download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
 ADDITIONAL_REPOSITORIES=(
