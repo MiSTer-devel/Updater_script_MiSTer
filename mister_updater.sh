@@ -138,7 +138,7 @@ then
 	eval "$(cat $INI_PATH | tr -d '\r')"
 fi
 
-if [ -d "${OLD_SCRIPTS_PATH}" ] && [ ! -f "${SCRIPTS_PATH}" ]
+if [ -d "${OLD_SCRIPTS_PATH}" ] && [ ! -d "${SCRIPTS_PATH}" ]
 then
 	mv "${OLD_SCRIPTS_PATH}" "${SCRIPTS_PATH}"
 	echo "Moved"
