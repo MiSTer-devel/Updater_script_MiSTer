@@ -146,7 +146,7 @@ then
 	echo "to"
 	echo "${BASE_PATH}/${SCRIPTS_PATH}"
 	echo "please relaunch the script."
-	echo exit 3
+	exit 3
 fi
 
 SSL_SECURITY_OPTION=""
