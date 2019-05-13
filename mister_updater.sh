@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 2.3 - 2019-05-13 - Added cheats download/update from gamehacking.org when UPDATE_CHEATS="true" ("once" for just downloading them once); added UPDATE_LINUX option instead of uncommenting SD_INSTALLER_PATH (this method still works for ini compatibility).
 # Version 2.2.1 - 2019-05-06 - Removed https://github.com/MiSTer-devel/CIFS_MiSTer from ADDITIONAL_REPOSITORIES, now CIFS scripts are hosted in https://github.com/MiSTer-devel/Scripts_MiSTer.
 # Version 2.2 - 2019-05-01 - CURL RETRY OPTIONS by wesclemens, now the script has a timeout and retry logic to prevent spotty connections causing the update to lockup, thank you very much; review time sync test by frederic-mahe, thank you very much; now the scripts default path is /media/fat/Scripts, moving #Scripts directory there when needed.
 # Version 2.1.5 - 2019-04-03 - Improved date-time parsing for additional repositories.
@@ -91,7 +92,13 @@ REMOVE_ARCADE_PREFIX="true"
 #you need, otherwise cores in the filter, but not on the SD won't be downloaded.
 REPOSITORIES_FILTER=""
 
+#Specifies if the cheats will be downloaded/updated from https://gamehacking.org/
+#"true" for checking for updates each time, "false" for disabling the function,
+#"once" for downloading cheats just once if not on the SD card (no further updating).
+UPDATE_CHEATS="once"
 
+#EXPERIMENTAL: specifies if the Kernel, the Linux filesystem and the bootloader will be updated; do it at your own risk!
+UPDATE_LINUX="false"
 
 #========= ADVANCED OPTIONS =========
 #ALLOW_INSECURE_SSL="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
@@ -114,9 +121,9 @@ ADDITIONAL_REPOSITORIES=(
 	"https://github.com/bbond007/MiSTer_MidiLink/tree/master/INSTALL|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 #	"https://github.com/MiSTer-devel/Fonts_MiSTer|pf|$BASE_PATH/font"
 )
+CHEATS_URL="https://gamehacking.org/mister/"
+CHEAT_MAPPINGS="fds:NES gb:GameBoy gbc:GameBoy gen:Genesis gg:SMS nes:NES pce:TGFX16 sms:SMS snes:SNES"
 UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
-#EXPERIMENTAL: Uncomment/Comment next line if you want or don't want the Kernel, the Linux filesystem and the bootloader to be updated; do it at your own risk!
-#SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
 #Uncomment this if you want the script to sync the system date and time with a NTP server
 #NTP_SERVER="0.pool.ntp.org"
 AUTOREBOOT="true"
@@ -204,6 +211,8 @@ then
 	done
 	mkdir -p "${NEW_CORE_CATEGORY_PATHS[@]}"
 fi
+
+[ "${UPDATE_LINUX}" == "true" ] && SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
 
 CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki"| awk '/user-content-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
 CORE_CATEGORY="-"
@@ -429,6 +438,60 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	done
 	echo ""
 done
+
+if [ "${UPDATE_CHEATS}" != "false" ]
+then
+	echo "Checking Cheats"
+	echo ""
+	CHEAT_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "${CHEATS_URL}" | grep -oE '"mister_[^_]+_[0-9]{8}.zip"' | sed 's/"//g')
+	for CHEAT_MAPPING in ${CHEAT_MAPPINGS}; do
+		MAPPING_KEY=$(echo "${CHEAT_MAPPING}" | grep -o "^[^:]*")
+		MAPPING_VALUE=$(echo "${CHEAT_MAPPING}" | grep -o "[^:]*$")
+		MAX_VERSION=""
+		FILE_NAME=$(echo "${CHEAT_URLS}" | grep "mister_${MAPPING_KEY}_")
+		if [ "${FILE_NAME}" != "" ]
+		then
+			CHEAT_URL="${CHEATS_URL}${FILE_NAME}"
+			MAX_VERSION=$(echo "${FILE_NAME}" | grep -oE "[0-9]{8}")
+			CURRENT_LOCAL_VERSION=""
+			MAX_LOCAL_VERSION=""
+			for CURRENT_FILE in "${WORK_PATH}/mister_${MAPPING_KEY}_"*
+			do
+				if [ -f "${CURRENT_FILE}" ]
+				then
+					if echo "${CURRENT_FILE}" | grep -qE "mister_[^_]+_[0-9]{8}.zip"
+					then
+						CURRENT_LOCAL_VERSION=$(echo "${CURRENT_FILE}" | grep -oE '[0-9]{8}')
+						[ "${UPDATE_CHEATS}" == "once" ] && CURRENT_LOCAL_VERSION="99999999"
+						if [[ "${CURRENT_LOCAL_VERSION}" > "${MAX_LOCAL_VERSION}" ]]
+						then
+							MAX_LOCAL_VERSION=${CURRENT_LOCAL_VERSION}
+						fi
+						if [[ "${MAX_VERSION}" > "${CURRENT_LOCAL_VERSION}" ]] && [ "${DELETE_OLD_FILES}" == "true" ]
+						then
+							echo "Deleting $(echo ${CURRENT_FILE} | sed 's/.*\///g')"
+							rm "${CURRENT_FILE}" > /dev/null 2>&1
+						fi
+					fi
+				fi
+			done
+			if [[ "${MAX_VERSION}" > "${MAX_LOCAL_VERSION}" ]]
+			then
+				echo "Downloading ${FILE_NAME}"
+				echo "URL: ${CHEAT_URL}" >&2
+				curl $CURL_RETRY $SSL_SECURITY_OPTION -L "${CHEAT_URL}" -o "${WORK_PATH}/${FILE_NAME}"
+				mkdir -p "${BASE_PATH}/cheats/${MAPPING_VALUE}"
+				sync
+				echo "Extracting ${FILE_NAME}"
+				unzip -o "${WORK_PATH}/${FILE_NAME}" -d "${BASE_PATH}/cheats/${MAPPING_VALUE}" 1>&2
+				rm "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
+				touch "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
+				sync
+				echo ""
+			fi
+		fi
+	done
+fi
 
 if [ "$SD_INSTALLER_PATH" != "" ]
 then
