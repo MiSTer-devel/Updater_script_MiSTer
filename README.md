@@ -30,4 +30,10 @@ ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Fonts_MiSTer|pf|$BASE
 UPDATE_CHEATS="false"
 UPDATE_LINUX="false"
 ```
+- you can make an *update_linux.sh* with its *[update_linux.ini](https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/examples/update_linux.ini?raw=true)* using these settings:
+```
+REPOSITORIES_FILTER="ZZZZZZZZZ"
+UPDATE_CHEATS="false"
+UPDATE_LINUX="true"
+```
 I take no responsibility for any data loss or anything, if your DE10-Nano catches fire it’s up to you: **use the script at your own risk**.
