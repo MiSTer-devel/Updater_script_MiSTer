@@ -7,19 +7,27 @@ You can have many differently named copies of [update.sh](https://github.com/MiS
 ```
 REPOSITORIES_FILTER="arcade-cores"
 ADDITIONAL_REPOSITORIES=( )
+UPDATE_CHEATS="false"
+UPDATE_LINUX="false"
 ```
 - you can make an *update_commodore.sh* with its *[update_commodore.ini](https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/examples/update_commodore.ini?raw=true)* using these settings:
 ```
 REPOSITORIES_FILTER="PET2001 VIC20 C64 C16 Minimig"
 ADDITIONAL_REPOSITORIES=( )
+UPDATE_CHEATS="false"
+UPDATE_LINUX="false"
 ```
 - you can make an *update_additional_repositories.sh* with its *[update_additional_repositories.ini](https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/examples/update_additional_repositories.ini?raw=true)* using these settings:
 ```
 REPOSITORIES_FILTER="ZZZZZZZZZ"
+UPDATE_CHEATS="false"
+UPDATE_LINUX="false"
 ```
 - you can make an *update_fonts.sh* with its *[update_fonts.ini](https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/examples/update_fonts.ini?raw=true)* using these settings:
 ```
 REPOSITORIES_FILTER="ZZZZZZZZZ"
 ADDITIONAL_REPOSITORIES=( "https://github.com/MiSTer-devel/Fonts_MiSTer|pf|$BASE_PATH/font" )
+UPDATE_CHEATS="false"
+UPDATE_LINUX="false"
 ```
 I take no responsibility for any data loss or anything, if your DE10-Nano catches fire it’s up to you: **use the script at your own risk**.
