@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 3.0 - 2019-05-18 - Added EXPERIMENTAL parallel processing for the update process when PARALLEL_UPDATE="true" (default value is "false"): use it at your own risk!
 # Version 2.3 - 2019-05-13 - Added cheats download/update from gamehacking.org when UPDATE_CHEATS="true" ("once" for just downloading them once); added UPDATE_LINUX option instead of uncommenting SD_INSTALLER_PATH (this method still works for ini compatibility).
 # Version 2.2.1 - 2019-05-06 - Removed https://github.com/MiSTer-devel/CIFS_MiSTer from ADDITIONAL_REPOSITORIES, now CIFS scripts are hosted in https://github.com/MiSTer-devel/Scripts_MiSTer.
 # Version 2.2 - 2019-05-01 - CURL RETRY OPTIONS by wesclemens, now the script has a timeout and retry logic to prevent spotty connections causing the update to lockup, thank you very much; review time sync test by frederic-mahe, thank you very much; now the scripts default path is /media/fat/Scripts, moving #Scripts directory there when needed.
@@ -97,8 +98,11 @@ REPOSITORIES_FILTER=""
 #"once" for downloading cheats just once if not on the SD card (no further updating).
 UPDATE_CHEATS="once"
 
-#EXPERIMENTAL: specifies if the Kernel, the Linux filesystem and the bootloader will be updated; do it at your own risk!
+#EXPERIMENTAL: specifies if the Kernel, the Linux filesystem and the bootloader will be updated; use it at your own risk!
 UPDATE_LINUX="false"
+
+#EXPERIMENTAL: specifies if the update process must be done with parallel processing; use it at your own risk!
+PARALLEL_UPDATE="false"
 
 #========= ADVANCED OPTIONS =========
 #ALLOW_INSECURE_SSL="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
@@ -225,152 +229,161 @@ then
 	REPOSITORIES_FILTER="\(Main_MiSTer\)\|\(Menu_MiSTer\)\|\(SD-Installer-Win64_MiSTer\)\|\($( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/\\)\\|\\([\/_-]/g' )\)"
 fi
 
+function checkCoreURL {
+	echo "Checking $(echo $CORE_URL | sed 's/.*\///g' | sed 's/_MiSTer//gI')"
+	[ "${SSH_CLIENT}" != "" ] && echo "URL: $CORE_URL"
+	if echo "$CORE_URL" | grep -q "SD-Installer"
+	then
+		RELEASES_URL="$CORE_URL"
+	else
+		RELEASES_URL=https://github.com$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$CORE_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
+	fi
+	RELEASE_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?')
+	
+	MAX_VERSION=""
+	MAX_RELEASE_URL=""
+	for RELEASE_URL in $RELEASE_URLS; do
+		if echo "$RELEASE_URL" | grep -q "SharpMZ"
+		then
+			RELEASE_URL=$(echo "$RELEASE_URL"  | grep '\.rbf$')
+		fi			
+		if echo "$RELEASE_URL" | grep -q "Atari800"
+		then
+			if [ "$CORE_CATEGORY" == "cores" ]
+			then
+				RELEASE_URL=$(echo "$RELEASE_URL"  | grep '800_[0-9]\{8\}[a-zA-Z]\?\.rbf$')
+			else
+				RELEASE_URL=$(echo "$RELEASE_URL"  | grep '5200_[0-9]\{8\}[a-zA-Z]\?\.rbf$')
+			fi
+		fi			
+		CURRENT_VERSION=$(echo "$RELEASE_URL" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
+		if [[ "$CURRENT_VERSION" > "$MAX_VERSION" ]]
+		then
+			MAX_VERSION=$CURRENT_VERSION
+			MAX_RELEASE_URL=$RELEASE_URL
+		fi
+	done
+	
+	FILE_NAME=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g')
+	if [ "$CORE_CATEGORY" == "arcade-cores" ] && [ $REMOVE_ARCADE_PREFIX == "true" ]
+	then
+		FILE_NAME=$(echo "$FILE_NAME" | sed 's/Arcade-//gI')
+	fi
+	BASE_FILE_NAME=$(echo "$FILE_NAME" | sed 's/_[0-9]\{8\}.*//g')
+	
+	CURRENT_DIRS="${CORE_CATEGORY_PATHS[$CORE_CATEGORY]}"
+	if [ "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}" != "" ]
+	then
+		CURRENT_DIRS=("$CURRENT_DIRS" "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}")
+	fi 
+	if [ "$CURRENT_DIRS" == "" ]
+	then
+		CURRENT_DIRS=("$BASE_PATH")
+	fi
+	if [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -q "SD-Installer"; }
+	then
+		mkdir -p "$WORK_PATH"
+		CURRENT_DIRS=("$WORK_PATH")
+	fi
+	
+	CURRENT_LOCAL_VERSION=""
+	MAX_LOCAL_VERSION=""
+	for CURRENT_DIR in "${CURRENT_DIRS[@]}"
+	do
+		for CURRENT_FILE in "$CURRENT_DIR/$BASE_FILE_NAME"*
+		do
+			if [ -f "$CURRENT_FILE" ]
+			then
+				if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?$"
+				then
+					CURRENT_LOCAL_VERSION=$(echo "$CURRENT_FILE" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
+					if [[ "$CURRENT_LOCAL_VERSION" > "$MAX_LOCAL_VERSION" ]]
+					then
+						MAX_LOCAL_VERSION=$CURRENT_LOCAL_VERSION
+					fi
+					if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == "true" ]
+					then
+						echo "Deleting $(echo $CURRENT_FILE | sed 's/.*\///g')"
+						rm "$CURRENT_FILE" > /dev/null 2>&1
+					fi
+				fi
+			fi
+		done
+		if [ "$MAX_LOCAL_VERSION" != "" ]
+		then
+			break
+		fi
+	done
+	
+	if [[ "$MAX_VERSION" > "$MAX_LOCAL_VERSION" ]]
+	then
+		if [ "$DOWNLOAD_NEW_CORES" != "false" ] || [ "$MAX_LOCAL_VERSION" != "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -q "SD-Installer"; }
+		then
+			echo "Downloading $FILE_NAME"
+			[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$MAX_RELEASE_URL?raw=true"
+			curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
+			if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
+			then
+				DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
+				echo "Moving $DESTINATION_FILE"
+				rm "/media/fat/$DESTINATION_FILE" > /dev/null 2>&1
+				mv "$CURRENT_DIR/$FILE_NAME" "/media/fat/$DESTINATION_FILE"
+				touch "$CURRENT_DIR/$FILE_NAME"
+				REBOOT_NEEDED="true"
+			fi
+			if echo "$CORE_URL" | grep -q "SD-Installer"
+			then
+				SD_INSTALLER_PATH="$CURRENT_DIR/$FILE_NAME"
+			fi
+			if [ "$CORE_CATEGORY" == "arcade-cores" ]
+			then
+				OLD_IFS="$IFS"
+				IFS="|"
+				for ARCADE_ALT_PATH in $ARCADE_ALT_PATHS
+				do
+					for ARCADE_ALT_DIR in "$ARCADE_ALT_PATH/_$BASE_FILE_NAME"*
+					do
+						if [ -d "$ARCADE_ALT_DIR" ]
+						then
+							echo "Updating $(echo $ARCADE_ALT_DIR | sed 's/.*\///g')"
+							if [ $DELETE_OLD_FILES == "true" ]
+							then
+								for ARCADE_HACK_CORE in "$ARCADE_ALT_DIR/"*.rbf
+								do
+									if [ -f "$ARCADE_HACK_CORE" ] && { echo "$ARCADE_HACK_CORE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\.rbf$"; }
+									then
+										rm "$ARCADE_HACK_CORE"  > /dev/null 2>&1
+									fi
+								done
+							fi
+							cp "$CURRENT_DIR/$FILE_NAME" "$ARCADE_ALT_DIR/"
+						fi
+					done
+				done
+				IFS="$OLD_IFS"
+			fi
+			sync
+		else
+			echo "New core: $FILE_NAME"
+		fi
+	else
+		echo "Nothing to update"
+	fi
+	
+	echo ""
+}
+
 for CORE_URL in $CORE_URLS; do
 	if [[ $CORE_URL == https://* ]]
 	then
 		if [ "$REPOSITORIES_FILTER" == "" ] || { echo "$CORE_URL" | grep -qi "$REPOSITORIES_FILTER";  } || { echo "$CORE_CATEGORY" | grep -qi "$CORE_CATEGORIES_FILTER";  }
 		then
-			echo "Checking $(echo $CORE_URL | sed 's/.*\///g' | sed 's/_MiSTer//gI')"
-			echo "URL: $CORE_URL" >&2
-			if echo "$CORE_URL" | grep -q "SD-Installer"
+			if echo "$CORE_URL" | grep -qE "(SD-Installer)|(/Main_MiSTer$)|(/Menu_MiSTer$)"
 			then
-				RELEASES_URL="$CORE_URL"
+				checkCoreURL
 			else
-				RELEASES_URL=https://github.com$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$CORE_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
+				[ "$PARALLEL_UPDATE" == "true" ] && { echo "$(checkCoreURL)"$'\n' & } || checkCoreURL
 			fi
-			RELEASE_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?')
-			
-			MAX_VERSION=""
-			MAX_RELEASE_URL=""
-			for RELEASE_URL in $RELEASE_URLS; do
-				if echo "$RELEASE_URL" | grep -q "SharpMZ"
-				then
-					RELEASE_URL=$(echo "$RELEASE_URL"  | grep '\.rbf$')
-				fi			
-				if echo "$RELEASE_URL" | grep -q "Atari800"
-				then
-					if [ "$CORE_CATEGORY" == "cores" ]
-					then
-						RELEASE_URL=$(echo "$RELEASE_URL"  | grep '800_[0-9]\{8\}[a-zA-Z]\?\.rbf$')
-					else
-						RELEASE_URL=$(echo "$RELEASE_URL"  | grep '5200_[0-9]\{8\}[a-zA-Z]\?\.rbf$')
-					fi
-				fi			
-				CURRENT_VERSION=$(echo "$RELEASE_URL" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
-				if [[ "$CURRENT_VERSION" > "$MAX_VERSION" ]]
-				then
-					MAX_VERSION=$CURRENT_VERSION
-					MAX_RELEASE_URL=$RELEASE_URL
-				fi
-			done
-			
-			FILE_NAME=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g')
-			if [ "$CORE_CATEGORY" == "arcade-cores" ] && [ $REMOVE_ARCADE_PREFIX == "true" ]
-			then
-				FILE_NAME=$(echo "$FILE_NAME" | sed 's/Arcade-//gI')
-			fi
-			BASE_FILE_NAME=$(echo "$FILE_NAME" | sed 's/_[0-9]\{8\}.*//g')
-			
-			CURRENT_DIRS="${CORE_CATEGORY_PATHS[$CORE_CATEGORY]}"
-			if [ "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}" != "" ]
-			then
-				CURRENT_DIRS=("$CURRENT_DIRS" "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}")
-			fi 
-			if [ "$CURRENT_DIRS" == "" ]
-			then
-				CURRENT_DIRS=("$BASE_PATH")
-			fi
-			if [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -q "SD-Installer"; }
-			then
-				mkdir -p "$WORK_PATH"
-				CURRENT_DIRS=("$WORK_PATH")
-			fi
-			
-			CURRENT_LOCAL_VERSION=""
-			MAX_LOCAL_VERSION=""
-			for CURRENT_DIR in "${CURRENT_DIRS[@]}"
-			do
-				for CURRENT_FILE in "$CURRENT_DIR/$BASE_FILE_NAME"*
-				do
-					if [ -f "$CURRENT_FILE" ]
-					then
-						if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?$"
-						then
-							CURRENT_LOCAL_VERSION=$(echo "$CURRENT_FILE" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
-							if [[ "$CURRENT_LOCAL_VERSION" > "$MAX_LOCAL_VERSION" ]]
-							then
-								MAX_LOCAL_VERSION=$CURRENT_LOCAL_VERSION
-							fi
-							if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == "true" ]
-							then
-								echo "Deleting $(echo $CURRENT_FILE | sed 's/.*\///g')"
-								rm "$CURRENT_FILE" > /dev/null 2>&1
-							fi
-						fi
-					fi
-				done
-				if [ "$MAX_LOCAL_VERSION" != "" ]
-				then
-					break
-				fi
-			done
-			
-			if [[ "$MAX_VERSION" > "$MAX_LOCAL_VERSION" ]]
-			then
-				if [ "$DOWNLOAD_NEW_CORES" != "false" ] || [ "$MAX_LOCAL_VERSION" != "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -q "SD-Installer"; }
-				then
-					echo "Downloading $FILE_NAME"
-					echo "URL: https://github.com$MAX_RELEASE_URL?raw=true" >&2
-					curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
-					if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
-					then
-						DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
-						echo "Moving $DESTINATION_FILE"
-						rm "/media/fat/$DESTINATION_FILE" > /dev/null 2>&1
-						mv "$CURRENT_DIR/$FILE_NAME" "/media/fat/$DESTINATION_FILE"
-						touch "$CURRENT_DIR/$FILE_NAME"
-						REBOOT_NEEDED="true"
-					fi
-					if echo "$CORE_URL" | grep -q "SD-Installer"
-					then
-						SD_INSTALLER_PATH="$CURRENT_DIR/$FILE_NAME"
-					fi
-					if [ "$CORE_CATEGORY" == "arcade-cores" ]
-					then
-						OLD_IFS="$IFS"
-						IFS="|"
-						for ARCADE_ALT_PATH in $ARCADE_ALT_PATHS
-						do
-							for ARCADE_ALT_DIR in "$ARCADE_ALT_PATH/_$BASE_FILE_NAME"*
-							do
-								if [ -d "$ARCADE_ALT_DIR" ]
-								then
-									echo "Updating $(echo $ARCADE_ALT_DIR | sed 's/.*\///g')"
-									if [ $DELETE_OLD_FILES == "true" ]
-									then
-										for ARCADE_HACK_CORE in "$ARCADE_ALT_DIR/"*.rbf
-										do
-											if [ -f "$ARCADE_HACK_CORE" ] && { echo "$ARCADE_HACK_CORE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\.rbf$"; }
-											then
-												rm "$ARCADE_HACK_CORE"  > /dev/null 2>&1
-											fi
-										done
-									fi
-									cp "$CURRENT_DIR/$FILE_NAME" "$ARCADE_ALT_DIR/"
-								fi
-							done
-						done
-						IFS="$OLD_IFS"
-					fi
-					sync
-				else
-					echo "New core: $FILE_NAME"
-				fi
-			else
-				echo "Nothing to update"
-			fi
-			
-			echo ""
 		fi
 	else
 		CORE_CATEGORY=$(echo "$CORE_URL" | sed 's/user-content-//g')
@@ -380,8 +393,9 @@ for CORE_URL in $CORE_URLS; do
 		fi
 	fi
 done
+wait
 
-for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
+function checkAdditionalRepository {
 	OLD_IFS="$IFS"
 	IFS="|"
 	PARAMS=($ADDITIONAL_REPOSITORY)
@@ -394,7 +408,7 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 		mkdir -p "$CURRENT_DIR"
 	fi
 	echo "Checking $(echo $ADDITIONAL_FILES_URL | sed 's/.*\///g' | awk '{ print toupper( substr( $0, 1, 1 ) ) substr( $0, 2 ); }')"
-	echo "URL: $ADDITIONAL_FILES_URL" >&2
+	[ "${SSH_CLIENT}" != "" ] && echo "URL: $ADDITIONAL_FILES_URL"
 	if echo "$ADDITIONAL_FILES_URL" | grep -q "\/tree\/master\/"
 	then
 		ADDITIONAL_FILES_URL=$(echo "$ADDITIONAL_FILES_URL" | sed 's/\/tree\/master\//\/file-list\/master\//g')
@@ -428,7 +442,7 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 			if [ "$ADDITIONAL_LOCAL_FILE_DATETIME" == "" ] || [[ "$ADDITIONAL_ONLINE_FILE_DATETIME" > "$ADDITIONAL_LOCAL_FILE_DATETIME" ]]
 			then
 				echo "Downloading $ADDITIONAL_FILE_NAME"
-				echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true" >&2
+				[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true"
 				curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
 				sync
 				echo ""
@@ -437,7 +451,61 @@ for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 		CONTENT_TD_INDEX=$((CONTENT_TD_INDEX+1))
 	done
 	echo ""
+}
+
+for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
+	[ "$PARALLEL_UPDATE" == "true" ] && { echo "$(checkAdditionalRepository)"$'\n' & } || checkAdditionalRepository
 done
+wait
+
+function checkCheat {
+	MAPPING_KEY=$(echo "${CHEAT_MAPPING}" | grep -o "^[^:]*")
+	MAPPING_VALUE=$(echo "${CHEAT_MAPPING}" | grep -o "[^:]*$")
+	MAX_VERSION=""
+	FILE_NAME=$(echo "${CHEAT_URLS}" | grep "mister_${MAPPING_KEY}_")
+	echo "Checking ${MAPPING_KEY^^}"
+	if [ "${FILE_NAME}" != "" ]
+	then
+		CHEAT_URL="${CHEATS_URL}${FILE_NAME}"
+		MAX_VERSION=$(echo "${FILE_NAME}" | grep -oE "[0-9]{8}")
+		CURRENT_LOCAL_VERSION=""
+		MAX_LOCAL_VERSION=""
+		for CURRENT_FILE in "${WORK_PATH}/mister_${MAPPING_KEY}_"*
+		do
+			if [ -f "${CURRENT_FILE}" ]
+			then
+				if echo "${CURRENT_FILE}" | grep -qE "mister_[^_]+_[0-9]{8}.zip"
+				then
+					CURRENT_LOCAL_VERSION=$(echo "${CURRENT_FILE}" | grep -oE '[0-9]{8}')
+					[ "${UPDATE_CHEATS}" == "once" ] && CURRENT_LOCAL_VERSION="99999999"
+					if [[ "${CURRENT_LOCAL_VERSION}" > "${MAX_LOCAL_VERSION}" ]]
+					then
+						MAX_LOCAL_VERSION=${CURRENT_LOCAL_VERSION}
+					fi
+					if [[ "${MAX_VERSION}" > "${CURRENT_LOCAL_VERSION}" ]] && [ "${DELETE_OLD_FILES}" == "true" ]
+					then
+						echo "Deleting $(echo ${CURRENT_FILE} | sed 's/.*\///g')"
+						rm "${CURRENT_FILE}" > /dev/null 2>&1
+					fi
+				fi
+			fi
+		done
+		if [[ "${MAX_VERSION}" > "${MAX_LOCAL_VERSION}" ]]
+		then
+			echo "Downloading ${FILE_NAME}"
+			[ "${SSH_CLIENT}" != "" ] && echo "URL: ${CHEAT_URL}"
+			curl $CURL_RETRY $SSL_SECURITY_OPTION -L "${CHEAT_URL}" -o "${WORK_PATH}/${FILE_NAME}"
+			mkdir -p "${BASE_PATH}/cheats/${MAPPING_VALUE}"
+			sync
+			echo "Extracting ${FILE_NAME}"
+			unzip -o "${WORK_PATH}/${FILE_NAME}" -d "${BASE_PATH}/cheats/${MAPPING_VALUE}" 1>&2
+			rm "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
+			touch "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
+			sync
+		fi
+	fi
+	echo ""
+}
 
 if [ "${UPDATE_CHEATS}" != "false" ]
 then
@@ -445,52 +513,9 @@ then
 	echo ""
 	CHEAT_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "${CHEATS_URL}" | grep -oE '"mister_[^_]+_[0-9]{8}.zip"' | sed 's/"//g')
 	for CHEAT_MAPPING in ${CHEAT_MAPPINGS}; do
-		MAPPING_KEY=$(echo "${CHEAT_MAPPING}" | grep -o "^[^:]*")
-		MAPPING_VALUE=$(echo "${CHEAT_MAPPING}" | grep -o "[^:]*$")
-		MAX_VERSION=""
-		FILE_NAME=$(echo "${CHEAT_URLS}" | grep "mister_${MAPPING_KEY}_")
-		if [ "${FILE_NAME}" != "" ]
-		then
-			CHEAT_URL="${CHEATS_URL}${FILE_NAME}"
-			MAX_VERSION=$(echo "${FILE_NAME}" | grep -oE "[0-9]{8}")
-			CURRENT_LOCAL_VERSION=""
-			MAX_LOCAL_VERSION=""
-			for CURRENT_FILE in "${WORK_PATH}/mister_${MAPPING_KEY}_"*
-			do
-				if [ -f "${CURRENT_FILE}" ]
-				then
-					if echo "${CURRENT_FILE}" | grep -qE "mister_[^_]+_[0-9]{8}.zip"
-					then
-						CURRENT_LOCAL_VERSION=$(echo "${CURRENT_FILE}" | grep -oE '[0-9]{8}')
-						[ "${UPDATE_CHEATS}" == "once" ] && CURRENT_LOCAL_VERSION="99999999"
-						if [[ "${CURRENT_LOCAL_VERSION}" > "${MAX_LOCAL_VERSION}" ]]
-						then
-							MAX_LOCAL_VERSION=${CURRENT_LOCAL_VERSION}
-						fi
-						if [[ "${MAX_VERSION}" > "${CURRENT_LOCAL_VERSION}" ]] && [ "${DELETE_OLD_FILES}" == "true" ]
-						then
-							echo "Deleting $(echo ${CURRENT_FILE} | sed 's/.*\///g')"
-							rm "${CURRENT_FILE}" > /dev/null 2>&1
-						fi
-					fi
-				fi
-			done
-			if [[ "${MAX_VERSION}" > "${MAX_LOCAL_VERSION}" ]]
-			then
-				echo "Downloading ${FILE_NAME}"
-				echo "URL: ${CHEAT_URL}" >&2
-				curl $CURL_RETRY $SSL_SECURITY_OPTION -L "${CHEAT_URL}" -o "${WORK_PATH}/${FILE_NAME}"
-				mkdir -p "${BASE_PATH}/cheats/${MAPPING_VALUE}"
-				sync
-				echo "Extracting ${FILE_NAME}"
-				unzip -o "${WORK_PATH}/${FILE_NAME}" -d "${BASE_PATH}/cheats/${MAPPING_VALUE}" 1>&2
-				rm "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
-				touch "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
-				sync
-				echo ""
-			fi
-		fi
+		[ "$PARALLEL_UPDATE" == "true" ] && { echo "$(checkCheat)"$'\n' & } || checkCheat
 	done
+	wait
 fi
 
 if [ "$SD_INSTALLER_PATH" != "" ]
