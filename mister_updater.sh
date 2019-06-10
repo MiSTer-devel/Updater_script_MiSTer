@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 3.0.2 - 2019-06-10 - Testing Internet connectivity with github.com instead of google.com; improved a regular expression for Debian repository parsing.
 # Version 3.0.1 - 2019-05-25 - Changed UPDATE_LINUX default value from "false" to "true".
 # Version 3.0 - 2019-05-18 - Added EXPERIMENTAL parallel processing for the update process when PARALLEL_UPDATE="true" (default value is "false"): use it at your own risk!
 # Version 2.3 - 2019-05-13 - Added cheats download/update from gamehacking.org when UPDATE_CHEATS="true" ("once" for just downloading them once); added UPDATE_LINUX option instead of uncommenting SD_INSTALLER_PATH (this method still works for ini compatibility).
@@ -162,7 +163,7 @@ then
 fi
 
 SSL_SECURITY_OPTION=""
-curl $CURL_RETRY -q https://google.com &>/dev/null
+curl $CURL_RETRY -q https://github.com &>/dev/null
 case $? in
 	0)
 		;;
@@ -524,7 +525,7 @@ then
 	echo "Linux system must be updated"
 	if [ ! -f "/media/fat/linux/unrar-nonfree" ]
 	then
-		UNRAR_DEB_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9./_+-]*_armhf\.deb\"' | sed 's/\"//g')
+		UNRAR_DEB_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9%./_+-]*_armhf\.deb\"' | sed 's/\"//g')
 		MAX_VERSION=""
 		MAX_RELEASE_URL=""
 		for RELEASE_URL in $UNRAR_DEB_URLS; do
