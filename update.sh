@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 2.1.1 - 2019-06-10 - Testing Internet connectivity with github.com instead of google.com.
 # Version 2.1 - 2019-02-23 - CURL RETRY OPTIONS by wesclemens, now the script has a timeout and retry logic to prevent spotty connections causing the update to lockup; thank you very much.
 # Version 2.1 - 2019-02-23 - Code review by frederic-mahe, now the script is more standardized and elegant, thank you very much; ALLOW_INSECURE_SSH renamed to ALLOW_INSECURE_SSL.
 # Version 2.0 - 2019-02-02 - Added ALLOW_INSECURE_SSH option: "true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html ) is working (CA certificates installed) and when it's working it will use this feature for safe curl HTTPS downloads, otherwise it will use --insecure option for disabling SSL certificate verification. If CA certificates aren't installed it's advised to install them (i.e. using security_fixes.sh). "false" will never use --insecure option and if CA certificates aren't installed any download will fail.
@@ -57,7 +58,7 @@ fi
 
 # test network and https by pinging the most available website 
 SSL_SECURITY_OPTION=""
-curl ${CURL_RETRY} --silent https://google.com > /dev/null 2>&1
+curl ${CURL_RETRY} --silent https://github.com > /dev/null 2>&1
 case $? in
 	0)
 		;;
