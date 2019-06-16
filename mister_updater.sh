@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 3.1 - 2019-06-16 - Checking cURL download success and restoring old files when needed.
 # Version 3.0.2 - 2019-06-10 - Testing Internet connectivity with github.com instead of google.com; improved a regular expression for Debian repository parsing.
 # Version 3.0.1 - 2019-05-25 - Changed UPDATE_LINUX default value from "false" to "true".
 # Version 3.0 - 2019-05-18 - Added EXPERIMENTAL parallel processing for the update process when PARALLEL_UPDATE="true" (default value is "false"): use it at your own risk!
@@ -135,6 +136,7 @@ UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
 AUTOREBOOT="true"
 REBOOT_PAUSE=0
 TEMP_PATH="/tmp"
+TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 
 
@@ -305,8 +307,8 @@ function checkCoreURL {
 					fi
 					if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == "true" ]
 					then
-						echo "Deleting $(echo $CURRENT_FILE | sed 's/.*\///g')"
-						rm "$CURRENT_FILE" > /dev/null 2>&1
+						# echo "Moving $(echo ${CURRENT_FILE} | sed 's/.*\///g')"
+						mv "${CURRENT_FILE}" "${CURRENT_FILE}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
 					fi
 				fi
 			fi
@@ -323,46 +325,64 @@ function checkCoreURL {
 		then
 			echo "Downloading $FILE_NAME"
 			[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$MAX_RELEASE_URL?raw=true"
-			curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
-			if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
+			if curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
 			then
-				DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
-				echo "Moving $DESTINATION_FILE"
-				rm "/media/fat/$DESTINATION_FILE" > /dev/null 2>&1
-				mv "$CURRENT_DIR/$FILE_NAME" "/media/fat/$DESTINATION_FILE"
-				touch "$CURRENT_DIR/$FILE_NAME"
-				REBOOT_NEEDED="true"
-			fi
-			if echo "$CORE_URL" | grep -q "SD-Installer"
-			then
-				SD_INSTALLER_PATH="$CURRENT_DIR/$FILE_NAME"
-			fi
-			if [ "$CORE_CATEGORY" == "arcade-cores" ]
-			then
-				OLD_IFS="$IFS"
-				IFS="|"
-				for ARCADE_ALT_PATH in $ARCADE_ALT_PATHS
-				do
-					for ARCADE_ALT_DIR in "$ARCADE_ALT_PATH/_$BASE_FILE_NAME"*
+				if [ ${DELETE_OLD_FILES} == "true" ]
+				then
+					echo "Deleting old ${BASE_FILE_NAME} files"
+					rm "${CURRENT_DIR}/${BASE_FILE_NAME}"*.${TO_BE_DELETED_EXTENSION} > /dev/null 2>&1
+				fi
+				if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
+				then
+					DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
+					echo "Moving $DESTINATION_FILE"
+					rm "/media/fat/$DESTINATION_FILE" > /dev/null 2>&1
+					mv "$CURRENT_DIR/$FILE_NAME" "/media/fat/$DESTINATION_FILE"
+					touch "$CURRENT_DIR/$FILE_NAME"
+					REBOOT_NEEDED="true"
+				fi
+				if echo "$CORE_URL" | grep -q "SD-Installer"
+				then
+					SD_INSTALLER_PATH="$CURRENT_DIR/$FILE_NAME"
+				fi
+				if [ "$CORE_CATEGORY" == "arcade-cores" ]
+				then
+					OLD_IFS="$IFS"
+					IFS="|"
+					for ARCADE_ALT_PATH in $ARCADE_ALT_PATHS
 					do
-						if [ -d "$ARCADE_ALT_DIR" ]
-						then
-							echo "Updating $(echo $ARCADE_ALT_DIR | sed 's/.*\///g')"
-							if [ $DELETE_OLD_FILES == "true" ]
+						for ARCADE_ALT_DIR in "$ARCADE_ALT_PATH/_$BASE_FILE_NAME"*
+						do
+							if [ -d "$ARCADE_ALT_DIR" ]
 							then
-								for ARCADE_HACK_CORE in "$ARCADE_ALT_DIR/"*.rbf
-								do
-									if [ -f "$ARCADE_HACK_CORE" ] && { echo "$ARCADE_HACK_CORE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\.rbf$"; }
-									then
-										rm "$ARCADE_HACK_CORE"  > /dev/null 2>&1
-									fi
-								done
+								echo "Updating $(echo $ARCADE_ALT_DIR | sed 's/.*\///g')"
+								if [ $DELETE_OLD_FILES == "true" ]
+								then
+									for ARCADE_HACK_CORE in "$ARCADE_ALT_DIR/"*.rbf
+									do
+										if [ -f "$ARCADE_HACK_CORE" ] && { echo "$ARCADE_HACK_CORE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\.rbf$"; }
+										then
+											rm "$ARCADE_HACK_CORE"  > /dev/null 2>&1
+										fi
+									done
+								fi
+								cp "$CURRENT_DIR/$FILE_NAME" "$ARCADE_ALT_DIR/"
 							fi
-							cp "$CURRENT_DIR/$FILE_NAME" "$ARCADE_ALT_DIR/"
-						fi
+						done
 					done
-				done
-				IFS="$OLD_IFS"
+					IFS="$OLD_IFS"
+				fi
+			else
+				echo "${FILE_NAME} download failed"
+				rm "${CURRENT_DIR}/${FILE_NAME}" > /dev/null 2>&1
+				if [ ${DELETE_OLD_FILES} == "true" ]
+				then
+					echo "Restoring old ${BASE_FILE_NAME} files"
+					for FILE_TO_BE_RESTORED in "${CURRENT_DIR}/${BASE_FILE_NAME}"*.${TO_BE_DELETED_EXTENSION}
+					do
+					  mv "${FILE_TO_BE_RESTORED}" "${FILE_TO_BE_RESTORED%.${TO_BE_DELETED_EXTENSION}}" > /dev/null 2>&1
+					done
+				fi
 			fi
 			sync
 		else
@@ -445,7 +465,16 @@ function checkAdditionalRepository {
 			then
 				echo "Downloading $ADDITIONAL_FILE_NAME"
 				[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true"
-				curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
+				mv "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
+				if curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
+				then
+					rm "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
+				else
+					echo "${ADDITIONAL_FILE_NAME} download failed"
+					echo "Restoring old ${ADDITIONAL_FILE_NAME} file"
+					rm "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" > /dev/null 2>&1
+					mv "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" > /dev/null 2>&1
+				fi
 				sync
 				echo ""
 			fi
@@ -486,8 +515,7 @@ function checkCheat {
 					fi
 					if [[ "${MAX_VERSION}" > "${CURRENT_LOCAL_VERSION}" ]] && [ "${DELETE_OLD_FILES}" == "true" ]
 					then
-						echo "Deleting $(echo ${CURRENT_FILE} | sed 's/.*\///g')"
-						rm "${CURRENT_FILE}" > /dev/null 2>&1
+						mv "${CURRENT_FILE}" "${CURRENT_FILE}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
 					fi
 				fi
 			fi
@@ -496,13 +524,31 @@ function checkCheat {
 		then
 			echo "Downloading ${FILE_NAME}"
 			[ "${SSH_CLIENT}" != "" ] && echo "URL: ${CHEAT_URL}"
-			curl $CURL_RETRY $SSL_SECURITY_OPTION -L "${CHEAT_URL}" -o "${WORK_PATH}/${FILE_NAME}"
-			mkdir -p "${BASE_PATH}/cheats/${MAPPING_VALUE}"
-			sync
-			echo "Extracting ${FILE_NAME}"
-			unzip -o "${WORK_PATH}/${FILE_NAME}" -d "${BASE_PATH}/cheats/${MAPPING_VALUE}" 1>&2
-			rm "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
-			touch "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
+			if curl $CURL_RETRY $SSL_SECURITY_OPTION -L "${CHEAT_URL}" -o "${WORK_PATH}/${FILE_NAME}"
+			then
+				if [ ${DELETE_OLD_FILES} == "true" ]
+				then
+					echo "Deleting old mister_${MAPPING_KEY} files"
+					rm "${WORK_PATH}/mister_${MAPPING_KEY}_"*.${TO_BE_DELETED_EXTENSION} > /dev/null 2>&1
+				fi
+				mkdir -p "${BASE_PATH}/cheats/${MAPPING_VALUE}"
+				sync
+				echo "Extracting ${FILE_NAME}"
+				unzip -o "${WORK_PATH}/${FILE_NAME}" -d "${BASE_PATH}/cheats/${MAPPING_VALUE}" 1>&2
+				rm "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
+				touch "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
+			else
+				echo "${FILE_NAME} download failed"
+				rm "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
+				if [ ${DELETE_OLD_FILES} == "true" ]
+				then
+					echo "Restoring old mister_${MAPPING_KEY} files"
+					for FILE_TO_BE_RESTORED in "${WORK_PATH}/mister_${MAPPING_KEY}_"*.${TO_BE_DELETED_EXTENSION}
+					do
+					  mv "${FILE_TO_BE_RESTORED}" "${FILE_TO_BE_RESTORED%.${TO_BE_DELETED_EXTENSION}}" > /dev/null 2>&1
+					done
+				fi
+			fi
 			sync
 		fi
 	fi
