@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 3.1.1 - 2019-07-26 - The script is compatible with a possible renaming of "Cores" to "Computer Cores" in MiSTer Wiki Sidebar.
 # Version 3.1 - 2019-06-16 - Checking cURL download success and restoring old files when needed.
 # Version 3.0.2 - 2019-06-10 - Testing Internet connectivity with github.com instead of google.com; improved a regular expression for Debian repository parsing.
 # Version 3.0.1 - 2019-05-25 - Changed UPDATE_LINUX default value from "false" to "true".
@@ -222,7 +223,7 @@ fi
 
 [ "${UPDATE_LINUX}" == "true" ] && SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
 
-CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki"| awk '/user-content-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
+CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki"| awk '/(user-content-cores)|(user-content-computer-cores)/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
 CORE_CATEGORY="-"
 SD_INSTALLER_PATH=""
 REBOOT_NEEDED="false"
@@ -412,6 +413,10 @@ for CORE_URL in $CORE_URLS; do
 		if [ "$CORE_CATEGORY" == "" ]
 		then
 			CORE_CATEGORY="-"
+		fi
+		if [ "$CORE_CATEGORY" == "computer-cores" ]
+		then
+			CORE_CATEGORY="cores"
 		fi
 	fi
 done
