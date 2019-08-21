@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 3.2 - 2019-08-21 - Implemented GOOD_CORES_URL for having a list of curated "good" cores.
 # Version 3.1.1 - 2019-07-26 - The script is compatible with a possible renaming of "Cores" to "Computer Cores" in MiSTer Wiki Sidebar.
 # Version 3.1 - 2019-06-16 - Checking cURL download success and restoring old files when needed.
 # Version 3.0.2 - 2019-06-10 - Testing Internet connectivity with github.com instead of google.com; improved a regular expression for Debian repository parsing.
@@ -107,6 +108,11 @@ UPDATE_LINUX="true"
 
 #EXPERIMENTAL: specifies if the update process must be done with parallel processing; use it at your own risk!
 PARALLEL_UPDATE="false"
+
+#Specifies an optional URL with a text file containing a curated list of "good" cores.
+#If a core is specified there, it will be preferred over the latest "bleeding edge" core in its repository.
+#The text file can be something simple as "Genesis_20190712.rbf SNES_20190703.rbf"
+GOOD_CORES_URL=""
 
 #========= ADVANCED OPTIONS =========
 #ALLOW_INSECURE_SSL="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
@@ -234,6 +240,12 @@ then
 	REPOSITORIES_FILTER="\(Main_MiSTer\)\|\(Menu_MiSTer\)\|\(SD-Installer-Win64_MiSTer\)\|\($( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/\\)\\|\\([\/_-]/g' )\)"
 fi
 
+GOOD_CORES=""
+if [ "$GOOD_CORES_URL" != "" ]
+then
+	GOOD_CORES=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$GOOD_CORES_URL")
+fi
+
 function checkCoreURL {
 	echo "Checking $(echo $CORE_URL | sed 's/.*\///g' | sed 's/_MiSTer//gI')"
 	[ "${SSH_CLIENT}" != "" ] && echo "URL: $CORE_URL"
@@ -247,6 +259,7 @@ function checkCoreURL {
 	
 	MAX_VERSION=""
 	MAX_RELEASE_URL=""
+	GOOD_CORE_VERSION=""
 	for RELEASE_URL in $RELEASE_URLS; do
 		if echo "$RELEASE_URL" | grep -q "SharpMZ"
 		then
@@ -262,6 +275,18 @@ function checkCoreURL {
 			fi
 		fi			
 		CURRENT_VERSION=$(echo "$RELEASE_URL" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
+		
+		if [ "$GOOD_CORES" != "" ]
+		then
+			GOOD_CORE_VERSION=$(echo "$GOOD_CORES" | grep -wo "$(echo "$RELEASE_URL" | sed 's/.*\///g')" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
+			if [ "$GOOD_CORE_VERSION" != "" ]
+			then
+				MAX_VERSION=$CURRENT_VERSION
+				MAX_RELEASE_URL=$RELEASE_URL
+				break
+			fi
+		fi
+		
 		if [[ "$CURRENT_VERSION" > "$MAX_VERSION" ]]
 		then
 			MAX_VERSION=$CURRENT_VERSION
@@ -302,15 +327,33 @@ function checkCoreURL {
 				if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?$"
 				then
 					CURRENT_LOCAL_VERSION=$(echo "$CURRENT_FILE" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
-					if [[ "$CURRENT_LOCAL_VERSION" > "$MAX_LOCAL_VERSION" ]]
+					if [ "$GOOD_CORE_VERSION" != "" ]
 					then
-						MAX_LOCAL_VERSION=$CURRENT_LOCAL_VERSION
+						if [ "$CURRENT_LOCAL_VERSION" == "$GOOD_CORE_VERSION" ]
+						then
+							MAX_LOCAL_VERSION=$CURRENT_LOCAL_VERSION
+						else
+							if [ "$MAX_LOCAL_VERSION" == "" ]
+							then
+								MAX_LOCAL_VERSION="00000000"
+							fi
+							if [ $DELETE_OLD_FILES == "true" ]
+							then
+								mv "${CURRENT_FILE}" "${CURRENT_FILE}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
+							fi
+						fi
+					else
+						if [[ "$CURRENT_LOCAL_VERSION" > "$MAX_LOCAL_VERSION" ]]
+						then
+							MAX_LOCAL_VERSION=$CURRENT_LOCAL_VERSION
+						fi
+						if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == "true" ]
+						then
+							# echo "Moving $(echo ${CURRENT_FILE} | sed 's/.*\///g')"
+							mv "${CURRENT_FILE}" "${CURRENT_FILE}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
+						fi
 					fi
-					if [[ "$MAX_VERSION" > "$CURRENT_LOCAL_VERSION" ]] && [ $DELETE_OLD_FILES == "true" ]
-					then
-						# echo "Moving $(echo ${CURRENT_FILE} | sed 's/.*\///g')"
-						mv "${CURRENT_FILE}" "${CURRENT_FILE}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
-					fi
+				
 				fi
 			fi
 		done
