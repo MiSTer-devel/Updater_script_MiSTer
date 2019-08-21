@@ -18,6 +18,9 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+
+
+# Version 3.3 - 2019-08-21 - Implemented CREATE_CORES_DIRECTORIES; when "true" (default value), the updater will create the core directory (i.e. /media/fat/Amiga for Minimig core, /media/fat/SNES for SNES core) the first time the core is downloaded.
 # Version 3.2 - 2019-08-21 - Implemented GOOD_CORES_URL for having a list of curated "good" cores.
 # Version 3.1.1 - 2019-07-26 - The script is compatible with a possible renaming of "Cores" to "Computer Cores" in MiSTer Wiki Sidebar.
 # Version 3.1 - 2019-06-16 - Checking cURL download success and restoring old files when needed.
@@ -111,8 +114,12 @@ PARALLEL_UPDATE="false"
 
 #Specifies an optional URL with a text file containing a curated list of "good" cores.
 #If a core is specified there, it will be preferred over the latest "bleeding edge" core in its repository.
-#The text file can be something simple as "Genesis_20190712.rbf SNES_20190703.rbf"
+#The text file can be something simple as "Genesis_20190712.rbf SNES_20190703.rbf".
 GOOD_CORES_URL=""
+
+#Specifies if the core directory (i.e. /media/fat/Amiga for Minimig core, /media/fat/SNES for SNES core) has to be created
+#the first time the core is downloaded.
+CREATE_CORES_DIRECTORIES="true"
 
 #========= ADVANCED OPTIONS =========
 #ALLOW_INSECURE_SSL="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
@@ -415,6 +422,34 @@ function checkCoreURL {
 						done
 					done
 					IFS="$OLD_IFS"
+				fi
+				if [ "$CREATE_CORES_DIRECTORIES" != "false" ] && [ "$MAX_LOCAL_VERSION" == "" ]
+				then
+					if [ "$BASE_FILE_NAME" != "menu" ] && [ "$CORE_CATEGORY" == "cores" ] || [ "$CORE_CATEGORY" == "computer-cores" ] || [ "$CORE_CATEGORY" == "console-cores" ]
+					then
+						CORE_SOURCE_URL=""
+						CORE_INTERNAL_NAME=""
+						case "${BASE_FILE_NAME}" in
+							"Minimig")
+								CORE_INTERNAL_NAME="Amiga"
+								;;
+							"Apple-I"|"C64"|"PDP1")
+								CORE_INTERNAL_NAME="${BASE_FILE_NAME}"
+								;;
+							"SharpMZ")
+								CORE_INTERNAL_NAME="SHARP MZ SERIES"
+								;;
+							*)
+								CORE_SOURCE_URL="$(echo "https://github.com$MAX_RELEASE_URL" | sed 's/releases.*//g')${BASE_FILE_NAME}.sv"
+								CORE_INTERNAL_NAME="$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "${CORE_SOURCE_URL}?raw=true" | awk '/CONF_STR[^=]*=/,/;/' | grep -oE -m1 '".*?;' | sed 's/[";]//g')"
+								;;
+						esac
+						if [ "$CORE_INTERNAL_NAME" != "" ]
+						then
+							echo "Creating $BASE_PATH/$CORE_INTERNAL_NAME directory"
+							mkdir -p "$BASE_PATH/$CORE_INTERNAL_NAME"
+						fi
+					fi
 				fi
 			else
 				echo "${FILE_NAME} download failed"
