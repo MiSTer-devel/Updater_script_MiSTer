@@ -18,6 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
+# Version 2.1.2 - 2019-08-16 - minor refactoring.
 # Version 2.1.1 - 2019-06-10 - Testing Internet connectivity with github.com instead of google.com.
 # Version 2.1 - 2019-02-23 - CURL RETRY OPTIONS by wesclemens, now the script has a timeout and retry logic to prevent spotty connections causing the update to lockup; thank you very much.
 # Version 2.1 - 2019-02-23 - Code review by frederic-mahe, now the script is more standardized and elegant, thank you very much; ALLOW_INSECURE_SSH renamed to ALLOW_INSECURE_SSL.
@@ -26,7 +27,9 @@
 
 
 # ========= OPTIONS ==================
-SCRIPT_URL="https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh"
+URL="https://github.com"
+SCRIPT_URL="${URL}/MiSTer-devel/Updater_script_MiSTer/blob/master/mister_updater.sh"
+CURL_RETRY="--connect-timeout 15 --max-time 120 --retry 3 --retry-delay 5 --silent"
 
 # ========= ADVANCED OPTIONS =========
 # ALLOW_INSECURE_SSL="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
@@ -36,8 +39,6 @@ SCRIPT_URL="https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/mi
 # ALLOW_INSECURE_SSL="false" will never use --insecure option and if CA certificates aren't installed
 # any download will fail.
 ALLOW_INSECURE_SSL="true"
-
-CURL_RETRY="--connect-timeout 15 --max-time 120 --retry 3 --retry-delay 5"
 
 # ========= CODE STARTS HERE =========
 # get the name of the script, or of the parent script if called through a 'curl ... | bash -'
@@ -56,9 +57,9 @@ if [[ -f "${INI_PATH}" ]] ; then
 	rm -f ${TMP}
 fi
 
-# test network and https by pinging the most available website 
+# test network and https by pinging the target website 
 SSL_SECURITY_OPTION=""
-curl ${CURL_RETRY} --silent https://github.com > /dev/null 2>&1
+curl ${CURL_RETRY} "${URL}" > /dev/null 2>&1
 case $? in
 	0)
 		;;
@@ -91,7 +92,6 @@ curl \
 	${SSL_SECURITY_OPTION} \
 	--fail \
 	--location \
-	--silent \
 	"${SCRIPT_URL}?raw=true" | \
 	bash -
 
