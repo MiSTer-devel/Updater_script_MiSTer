@@ -18,7 +18,7 @@
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
-# Version 2.1.2 - 2019-08-16 - minor refactoring.
+# Version 2.1.2 - 2019-08-16 - Minor refactoring by frederic-mahe, thank you very much.
 # Version 2.1.1 - 2019-06-10 - Testing Internet connectivity with github.com instead of google.com.
 # Version 2.1 - 2019-02-23 - CURL RETRY OPTIONS by wesclemens, now the script has a timeout and retry logic to prevent spotty connections causing the update to lockup; thank you very much.
 # Version 2.1 - 2019-02-23 - Code review by frederic-mahe, now the script is more standardized and elegant, thank you very much; ALLOW_INSECURE_SSH renamed to ALLOW_INSECURE_SSL.
