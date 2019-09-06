@@ -19,7 +19,7 @@
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
 
-
+# Version 3.4 - 2019-09-06 - Added LINUX_PATH and removed hardcoding of /media/path/ (driven from top config)
 # Version 3.3 - 2019-08-21 - Implemented CREATE_CORES_DIRECTORIES; when "true" (default value), the updater will create the core directory (i.e. /media/fat/Amiga for Minimig core, /media/fat/SNES for SNES core) the first time the core is downloaded.
 # Version 3.2 - 2019-08-21 - Implemented GOOD_CORES_URL for having a list of curated "good" cores.
 # Version 3.1.1 - 2019-07-26 - The script is compatible with a possible renaming of "Cores" to "Computer Cores" in MiSTer Wiki Sidebar.
@@ -107,6 +107,7 @@ REPOSITORIES_FILTER=""
 UPDATE_CHEATS="once"
 
 #EXPERIMENTAL: specifies if the Kernel, the Linux filesystem and the bootloader will be updated; use it at your own risk!
+LINUX_PATH="$BASE_PATH/linux"
 UPDATE_LINUX="true"
 
 #EXPERIMENTAL: specifies if the update process must be done with parallel processing; use it at your own risk!
@@ -133,7 +134,7 @@ CURL_RETRY="--connect-timeout 15 --max-time 120 --retry 3 --retry-delay 5"
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
 SCRIPTS_PATH="Scripts"
 OLD_SCRIPTS_PATH="#Scripts"
-WORK_PATH="/media/fat/$SCRIPTS_PATH/.mister_updater"
+WORK_PATH="$BASE_PATH/$SCRIPTS_PATH/.mister_updater"
 #Comment (or uncomment) next lines if you don't want (or want) to update/download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
 ADDITIONAL_REPOSITORIES=(
 	"https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters"
@@ -387,8 +388,8 @@ function checkCoreURL {
 				then
 					DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
 					echo "Moving $DESTINATION_FILE"
-					rm "/media/fat/$DESTINATION_FILE" > /dev/null 2>&1
-					mv "$CURRENT_DIR/$FILE_NAME" "/media/fat/$DESTINATION_FILE"
+					rm "$BASE_PATH/$DESTINATION_FILE" > /dev/null 2>&1
+					mv "$CURRENT_DIR/$FILE_NAME" "$BASE_PATH/$DESTINATION_FILE"
 					touch "$CURRENT_DIR/$FILE_NAME"
 					REBOOT_NEEDED="true"
 				fi
@@ -652,7 +653,7 @@ fi
 if [ "$SD_INSTALLER_PATH" != "" ]
 then
 	echo "Linux system must be updated"
-	if [ ! -f "/media/fat/linux/unrar-nonfree" ]
+	if [ ! -f "$BASE_PATH/linux/unrar-nonfree" ]
 	then
 		UNRAR_DEB_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9%./_+-]*_armhf\.deb\"' | sed 's/\"//g')
 		MAX_VERSION=""
@@ -674,20 +675,20 @@ then
 		ar -x "$TEMP_PATH/$MAX_RELEASE_URL" data.tar.xz
 		cd "$ORIGINAL_DIR"
 		rm "$TEMP_PATH/$MAX_RELEASE_URL"
-		tar -xJf "$TEMP_PATH/data.tar.xz" --strip-components=3 -C "/media/fat/linux" ./usr/bin/unrar-nonfree
+		tar -xJf "$TEMP_PATH/data.tar.xz" --strip-components=3 -C "$BASE_PATH/linux" ./usr/bin/unrar-nonfree
 		rm "$TEMP_PATH/data.tar.xz" > /dev/null 2>&1
 	fi
-	if [ -f "/media/fat/linux/unrar-nonfree" ] && [ -f "$SD_INSTALLER_PATH" ]
+	if [ -f "$LINUX_PATH/unrar-nonfree" ] && [ -f "$SD_INSTALLER_PATH" ]
 	then
 		sync
-		if /media/fat/linux/unrar-nonfree t "$SD_INSTALLER_PATH"
+		if $LINUX_PATH/unrar-nonfree t "$SD_INSTALLER_PATH"
 		then
-			if [ -d /media/fat/linux.update ]
+			if [ -d $BASE_PATH/linux.update ]
 			then
-				rm -R "/media/fat/linux.update" > /dev/null 2>&1
+				rm -R "$BASE_PATH/linux.update" > /dev/null 2>&1
 			fi
-			mkdir "/media/fat/linux.update"
-			if /media/fat/linux/unrar-nonfree x -y "$SD_INSTALLER_PATH" files/linux/* /media/fat/linux.update
+			mkdir "$BASE_PATH/linux.update"
+			if $LINUX_PATH/unrar-nonfree x -y "$SD_INSTALLER_PATH" files/linux/* $BASE_PATH/linux.update
 			then
 				echo ""
 				echo "======================================================================================"
@@ -703,16 +704,16 @@ then
 				rm "$SD_INSTALLER_PATH" > /dev/null 2>&1
 				touch "$SD_INSTALLER_PATH"
 				sync
-				mv -f "/media/fat/linux.update/files/linux/linux.img" "/media/fat/linux/linux.img.new"
-				mv -f "/media/fat/linux.update/files/linux/"* "/media/fat/linux/"
-				rm -R "/media/fat/linux.update" > /dev/null 2>&1
+				mv -f "$BASE_PATH/linux.update/files/linux/linux.img" "$LINUX_PATH/linux.img.new"
+				mv -f "$BASE_PATH/linux.update/files/linux/"* "$BASE_PATH/linux/"
+				rm -R "$BASE_PATH/linux.update" > /dev/null 2>&1
 				sync
-				/media/fat/linux/updateboot
+				$LINUX_PATH/updateboot
 				sync
-				mv -f "/media/fat/linux/linux.img.new" "/media/fat/linux/linux.img"
+				mv -f "$LINUX_PATH/linux.img.new" "$LINUX_PATH/linux.img"
 				sync
 			else
-				rm -R "/media/fat/linux.update" > /dev/null 2>&1
+				rm -R "$BASE_PATH/linux.update" > /dev/null 2>&1
 				sync
 			fi
 			REBOOT_NEEDED="true"
