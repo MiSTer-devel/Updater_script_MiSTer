@@ -20,6 +20,7 @@
 
 
 
+# Version 3.3.1 - 2019-09-07 - Improved core directories creation; added NeoGeo xml download/update to ADDITIONAL_REPOSITORIES.
 # Version 3.3 - 2019-08-21 - Implemented CREATE_CORES_DIRECTORIES; when "true" (default value), the updater will create the core directory (i.e. /media/fat/Amiga for Minimig core, /media/fat/SNES for SNES core) the first time the core is downloaded.
 # Version 3.2 - 2019-08-21 - Implemented GOOD_CORES_URL for having a list of curated "good" cores.
 # Version 3.1.1 - 2019-07-26 - The script is compatible with a possible renaming of "Cores" to "Computer Cores" in MiSTer Wiki Sidebar.
@@ -141,6 +142,7 @@ ADDITIONAL_REPOSITORIES=(
 	"https://github.com/MiSTer-devel/Scripts_MiSTer|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 	"https://github.com/bbond007/MiSTer_MidiLink/tree/master/INSTALL|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 #	"https://github.com/MiSTer-devel/Fonts_MiSTer|pf|$BASE_PATH/font"
+	"https://github.com/MiSTer-devel/NeoGeo_MiSTer/tree/master/releases|xml|$BASE_PATH/NeoGeo"
 )
 CHEATS_URL="https://gamehacking.org/mister/"
 CHEAT_MAPPINGS="fds:NES gb:GameBoy gbc:GameBoy gen:Genesis gg:SMS nes:NES pce:TGFX16 sms:SMS snes:SNES"
@@ -433,7 +435,7 @@ function checkCoreURL {
 							"Minimig")
 								CORE_INTERNAL_NAME="Amiga"
 								;;
-							"Apple-I"|"C64"|"PDP1")
+							"Apple-I"|"C64"|"PDP1"|"NeoGeo")
 								CORE_INTERNAL_NAME="${BASE_FILE_NAME}"
 								;;
 							"SharpMZ")
