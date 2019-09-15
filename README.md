@@ -36,4 +36,11 @@ REPOSITORIES_FILTER="ZZZZZZZZZ"
 UPDATE_CHEATS="false"
 UPDATE_LINUX="true"
 ```
+- you can make an update_all.sh with its [update_all.sh](https://github.com/MiSTer-devel/Updater_script_MiSTer/blob/master/examples/update_all.ini?raw=true) using these settings:
+```
+UPDATE_CHEATS="true"
+UPDATE_LINUX="true"
+ADDITIONAL_REPOSITORIES+=( "https://github.com/MiSTer-devel/Fonts_MiSTer|pf|$BASE_PATH/font" )
+
+```
 I take no responsibility for any data loss or anything, if your DE10-Nano catches fire it’s up to you: **use the script at your own risk**.
