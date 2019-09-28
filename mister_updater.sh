@@ -20,6 +20,7 @@
 
 
 
+# Version 3.3.2 - 2019-09-28 - Implemented MD5 based check in addition to file timestamp for main menu and main MiSTer executable; added https://github.com/MiSTer-devel/Scripts_MiSTer/tree/master/other_authors to ADDITIONAL_REPOSITORIES.
 # Version 3.3.1 - 2019-09-07 - Improved core directories creation; added NeoGeo xml download/update to ADDITIONAL_REPOSITORIES.
 # Version 3.3 - 2019-08-21 - Implemented CREATE_CORES_DIRECTORIES; when "true" (default value), the updater will create the core directory (i.e. /media/fat/Amiga for Minimig core, /media/fat/SNES for SNES core) the first time the core is downloaded.
 # Version 3.2 - 2019-08-21 - Implemented GOOD_CORES_URL for having a list of curated "good" cores.
@@ -143,6 +144,7 @@ ADDITIONAL_REPOSITORIES=(
 	"https://github.com/bbond007/MiSTer_MidiLink/tree/master/INSTALL|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 #	"https://github.com/MiSTer-devel/Fonts_MiSTer|pf|$BASE_PATH/font"
 	"https://github.com/MiSTer-devel/NeoGeo_MiSTer/tree/master/releases|xml|$BASE_PATH/NeoGeo"
+	"https://github.com/MiSTer-devel/Scripts_MiSTer/tree/master/other_authors|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 )
 CHEATS_URL="https://gamehacking.org/mister/"
 CHEAT_MAPPINGS="fds:NES gb:GameBoy gbc:GameBoy gen:Genesis gg:SMS nes:NES pce:TGFX16 sms:SMS snes:SNES"
@@ -372,6 +374,21 @@ function checkCoreURL {
 		fi
 	done
 	
+	if [ "${BASE_FILE_NAME}" == "MiSTer" ] || [ "${BASE_FILE_NAME}" == "menu" ]
+	then
+		if [[ "${MAX_VERSION}" == "${MAX_LOCAL_VERSION}" ]]
+		then
+			DESTINATION_FILE=$(echo "${MAX_RELEASE_URL}" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
+			ACTUAL_CRC=$(md5sum "/media/fat/${DESTINATION_FILE}" | grep -o "^[^ ]*")
+			SAVED_CRC=$(cat "${WORK_PATH}/${FILE_NAME}")
+			if [ "$ACTUAL_CRC" != "$SAVED_CRC" ]
+			then
+				mv "${CURRENT_FILE}" "${CURRENT_FILE}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
+				MAX_LOCAL_VERSION=""
+			fi
+		fi
+	fi
+	
 	if [[ "$MAX_VERSION" > "$MAX_LOCAL_VERSION" ]]
 	then
 		if [ "$DOWNLOAD_NEW_CORES" != "false" ] || [ "$MAX_LOCAL_VERSION" != "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -q "SD-Installer"; }
@@ -391,7 +408,7 @@ function checkCoreURL {
 					echo "Moving $DESTINATION_FILE"
 					rm "/media/fat/$DESTINATION_FILE" > /dev/null 2>&1
 					mv "$CURRENT_DIR/$FILE_NAME" "/media/fat/$DESTINATION_FILE"
-					touch "$CURRENT_DIR/$FILE_NAME"
+					echo "${ACTUAL_CRC}" > "${CURRENT_DIR}/${FILE_NAME}"
 					REBOOT_NEEDED="true"
 				fi
 				if echo "$CORE_URL" | grep -q "SD-Installer"
