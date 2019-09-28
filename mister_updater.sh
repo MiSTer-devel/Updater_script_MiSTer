@@ -20,6 +20,7 @@
 
 
 
+# Version 3.3.3 - 2019-09-28 - Corrected a bug in MD5 based check in addition to file timestamp for main menu and main MiSTer executable.
 # Version 3.3.2 - 2019-09-28 - Implemented MD5 based check in addition to file timestamp for main menu and main MiSTer executable; added https://github.com/MiSTer-devel/Scripts_MiSTer/tree/master/other_authors to ADDITIONAL_REPOSITORIES.
 # Version 3.3.1 - 2019-09-07 - Improved core directories creation; added NeoGeo xml download/update to ADDITIONAL_REPOSITORIES.
 # Version 3.3 - 2019-08-21 - Implemented CREATE_CORES_DIRECTORIES; when "true" (default value), the updater will create the core directory (i.e. /media/fat/Amiga for Minimig core, /media/fat/SNES for SNES core) the first time the core is downloaded.
@@ -408,7 +409,7 @@ function checkCoreURL {
 					echo "Moving $DESTINATION_FILE"
 					rm "/media/fat/$DESTINATION_FILE" > /dev/null 2>&1
 					mv "$CURRENT_DIR/$FILE_NAME" "/media/fat/$DESTINATION_FILE"
-					echo "${ACTUAL_CRC}" > "${CURRENT_DIR}/${FILE_NAME}"
+					echo "$(md5sum "/media/fat/${DESTINATION_FILE}" | grep -o "^[^ ]*")" > "${CURRENT_DIR}/${FILE_NAME}"
 					REBOOT_NEEDED="true"
 				fi
 				if echo "$CORE_URL" | grep -q "SD-Installer"
