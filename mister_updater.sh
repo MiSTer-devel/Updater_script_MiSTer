@@ -20,6 +20,7 @@
 
 
 
+# Version 3.3.4 - 2019-10-20 - Fixed an incompatibility with gamehacking.org anti DDOS system.
 # Version 3.3.3 - 2019-09-28 - Corrected a bug in MD5 based check in addition to file timestamp for main menu and main MiSTer executable.
 # Version 3.3.2 - 2019-09-28 - Implemented MD5 based check in addition to file timestamp for main menu and main MiSTer executable; added https://github.com/MiSTer-devel/Scripts_MiSTer/tree/master/other_authors to ADDITIONAL_REPOSITORIES.
 # Version 3.3.1 - 2019-09-07 - Improved core directories creation; added NeoGeo xml download/update to ADDITIONAL_REPOSITORIES.
@@ -627,7 +628,7 @@ function checkCheat {
 		then
 			echo "Downloading ${FILE_NAME}"
 			[ "${SSH_CLIENT}" != "" ] && echo "URL: ${CHEAT_URL}"
-			if curl $CURL_RETRY $SSL_SECURITY_OPTION -L "${CHEAT_URL}" -o "${WORK_PATH}/${FILE_NAME}"
+			if curl $CURL_RETRY $SSL_SECURITY_OPTION -L --cookie "challenge=BitMitigate.com" "${CHEAT_URL}" -o "${WORK_PATH}/${FILE_NAME}"
 			then
 				if [ ${DELETE_OLD_FILES} == "true" ]
 				then
@@ -662,7 +663,7 @@ if [ "${UPDATE_CHEATS}" != "false" ]
 then
 	echo "Checking Cheats"
 	echo ""
-	CHEAT_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "${CHEATS_URL}" | grep -oE '"mister_[^_]+_[0-9]{8}.zip"' | sed 's/"//g')
+	CHEAT_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf --cookie "challenge=BitMitigate.com" "${CHEATS_URL}" | grep -oE '"mister_[^_]+_[0-9]{8}.zip"' | sed 's/"//g')
 	for CHEAT_MAPPING in ${CHEAT_MAPPINGS}; do
 		[ "$PARALLEL_UPDATE" == "true" ] && { echo "$(checkCheat)"$'\n' & } || checkCheat
 	done
