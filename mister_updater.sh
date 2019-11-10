@@ -20,7 +20,7 @@
 
 
 
-# Version 3.3.5 - 2019-11-10 - Added GAMES_SUBDIR option, specifies the Games/Programs subdirectory where core specific directories will be placed; GAMES_SUBDIR="" for letting the script choose between /media/fat and /media/fat/Games when it exists, otherwise the subdir you prefer (i.e. GAMES_SUBDIR="/Programs").
+# Version 3.3.5 - 2019-11-10 - Added GAMES_SUBDIR option, specifies the Games/Programs subdirectory where core specific directories will be placed; GAMES_SUBDIR="" for letting the script choose between /media/fat and /media/fat/games when it exists, otherwise the subdir you prefer (i.e. GAMES_SUBDIR="/Programs").
 # Version 3.3.4 - 2019-10-20 - Fixed an incompatibility with gamehacking.org anti DDOS system.
 # Version 3.3.3 - 2019-09-28 - Corrected a bug in MD5 based check in addition to file timestamp for main menu and main MiSTer executable.
 # Version 3.3.2 - 2019-09-28 - Implemented MD5 based check in addition to file timestamp for main menu and main MiSTer executable; added https://github.com/MiSTer-devel/Scripts_MiSTer/tree/master/other_authors to ADDITIONAL_REPOSITORIES.
