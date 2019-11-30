@@ -20,6 +20,7 @@
 
 
 
+# Version 3.4 - 2019-11-30 - Added support for the new filters and gamma tables repository structure; FILTERS_URL="" for disabling filters updating; if you use a custom ADDITIONAL_REPOSITORIES, please remove any Filters entry.
 # Version 3.3.5 - 2019-11-10 - Added GAMES_SUBDIR option, specifies the Games/Programs subdirectory where core specific directories will be placed; GAMES_SUBDIR="" for letting the script choose between /media/fat and /media/fat/games when it exists, otherwise the subdir you prefer (i.e. GAMES_SUBDIR="/Programs").
 # Version 3.3.4 - 2019-10-20 - Fixed an incompatibility with gamehacking.org anti DDOS system.
 # Version 3.3.3 - 2019-09-28 - Corrected a bug in MD5 based check in addition to file timestamp for main menu and main MiSTer executable.
@@ -150,7 +151,7 @@ OLD_SCRIPTS_PATH="#Scripts"
 WORK_PATH="/media/fat/$SCRIPTS_PATH/.mister_updater"
 #Comment (or uncomment) next lines if you don't want (or want) to update/download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
 ADDITIONAL_REPOSITORIES=(
-	"https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters"
+#	"https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters"
 	"https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|${BASE_PATH}${GAMES_SUBDIR}/GameBoy"
 	"https://github.com/MiSTer-devel/Scripts_MiSTer|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 	"https://github.com/bbond007/MiSTer_MidiLink/tree/master/INSTALL|sh inc|$BASE_PATH/$SCRIPTS_PATH"
@@ -158,6 +159,7 @@ ADDITIONAL_REPOSITORIES=(
 	"https://github.com/MiSTer-devel/NeoGeo_MiSTer/tree/master/releases|xml|${BASE_PATH}${GAMES_SUBDIR}/NeoGeo"
 	"https://github.com/MiSTer-devel/Scripts_MiSTer/tree/master/other_authors|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 )
+FILTERS_URL="https://github.com/MiSTer-devel/Filters_MiSTer"
 CHEATS_URL="https://gamehacking.org/mister/"
 CHEAT_MAPPINGS="fds:NES gb:GameBoy gbc:GameBoy gen:Genesis gg:SMS nes:NES pce:TGFX16 sms:SMS snes:SNES"
 UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
@@ -272,13 +274,13 @@ fi
 function checkCoreURL {
 	echo "Checking $(echo $CORE_URL | sed 's/.*\///g' | sed 's/_MiSTer//gI')"
 	[ "${SSH_CLIENT}" != "" ] && echo "URL: $CORE_URL"
-	if echo "$CORE_URL" | grep -q "SD-Installer"
+	if echo "$CORE_URL" | grep -qE "SD-Installer"
 	then
 		RELEASES_URL="$CORE_URL"
 	else
-		RELEASES_URL=https://github.com$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$CORE_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
+		RELEASES_URL=https://github.com$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$CORE_URL" | grep -oi '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
 	fi
-	RELEASE_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?')
+	RELEASE_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\|\.zip\)\?')
 	
 	MAX_VERSION=""
 	MAX_RELEASE_URL=""
@@ -333,7 +335,7 @@ function checkCoreURL {
 	then
 		CURRENT_DIRS=("$BASE_PATH")
 	fi
-	if [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -q "SD-Installer"; }
+	if [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -qE "SD-Installer|Filters_MiSTer"; }
 	then
 		mkdir -p "$WORK_PATH"
 		CURRENT_DIRS=("$WORK_PATH")
@@ -347,7 +349,7 @@ function checkCoreURL {
 		do
 			if [ -f "$CURRENT_FILE" ]
 			then
-				if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\)\?$"
+				if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\|\.zip\)\?$"
 				then
 					CURRENT_LOCAL_VERSION=$(echo "$CURRENT_FILE" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
 					if [ "$GOOD_CORE_VERSION" != "" ]
@@ -403,7 +405,7 @@ function checkCoreURL {
 	
 	if [[ "$MAX_VERSION" > "$MAX_LOCAL_VERSION" ]]
 	then
-		if [ "$DOWNLOAD_NEW_CORES" != "false" ] || [ "$MAX_LOCAL_VERSION" != "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -q "SD-Installer"; }
+		if [ "$DOWNLOAD_NEW_CORES" != "false" ] || [ "$MAX_LOCAL_VERSION" != "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -qE "SD-Installer|Filters_MiSTer"; }
 		then
 			echo "Downloading $FILE_NAME"
 			[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$MAX_RELEASE_URL?raw=true"
@@ -426,6 +428,13 @@ function checkCoreURL {
 				if echo "$CORE_URL" | grep -q "SD-Installer"
 				then
 					SD_INSTALLER_PATH="$CURRENT_DIR/$FILE_NAME"
+				fi
+				if echo "$CORE_URL" | grep -q "Filters_MiSTer"
+				then
+					echo "Extracting ${FILE_NAME}"
+					unzip -o "${WORK_PATH}/${FILE_NAME}" -d "${BASE_PATH}" 1>&2
+					rm "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
+					touch "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
 				fi
 				if [ "$CORE_CATEGORY" == "arcade-cores" ]
 				then
@@ -530,6 +539,20 @@ for CORE_URL in $CORE_URLS; do
 	fi
 done
 wait
+
+if [ "$FILTERS_URL" != "" ]
+then
+	if [ -d "$BASE_PATH/Filters" ] && dir $BASE_PATH/Filters/* > /dev/null 2>&1 && ! dir $BASE_PATH/Filters/*/ > /dev/null 2>&1 && [ ! -d "$BASE_PATH/Filters_backup" ]
+	then
+		echo "Backing up Filters"
+		mkdir -p "$BASE_PATH/Filters_backup"
+		mv $BASE_PATH/Filters/* $BASE_PATH/Filters_backup/
+		echo ""
+	fi
+	CORE_CATEGORY="-"
+	CORE_URL="$FILTERS_URL"
+	checkCoreURL
+fi
 
 function checkAdditionalRepository {
 	OLD_IFS="$IFS"
