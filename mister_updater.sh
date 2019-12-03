@@ -20,6 +20,7 @@
 
 
 
+# Version 3.4.1 - 2019-12-03 - Added a prompt for PARALLEL_UPDATE.
 # Version 3.4 - 2019-11-30 - Added support for the new filters and gamma tables repository structure; FILTERS_URL="" for disabling filters updating; if you use a custom ADDITIONAL_REPOSITORIES, please remove any Filters entry.
 # Version 3.3.5 - 2019-11-10 - Added GAMES_SUBDIR option, specifies the Games/Programs subdirectory where core specific directories will be placed; GAMES_SUBDIR="" for letting the script choose between /media/fat and /media/fat/games when it exists, otherwise the subdir you prefer (i.e. GAMES_SUBDIR="/Programs").
 # Version 3.3.4 - 2019-10-20 - Fixed an incompatibility with gamehacking.org anti DDOS system.
@@ -194,6 +195,17 @@ then
 	echo "${BASE_PATH}/${SCRIPTS_PATH}"
 	echo "please relaunch the script."
 	exit 3
+fi
+
+if [ "$PARALLEL_UPDATE" != "true" ]
+then
+			echo "Do you want a"
+			echo "faster update?"
+			echo "Please try"
+			echo "PARALLEL_UPDATE=\"true\""
+			echo "in your"
+			echo "$(basename $INI_PATH)"
+			echo ""
 fi
 
 SSL_SECURITY_OPTION=""
