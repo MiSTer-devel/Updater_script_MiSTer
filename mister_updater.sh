@@ -266,7 +266,9 @@ fi
 
 [ "${UPDATE_LINUX}" == "true" ] && SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
 
-CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki"| awk '/(user-content-cores)|(user-content-computer-cores)/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-z-]*\)')
+CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki"| awk '/user-content-fpga-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-zA-Z0-9-]*\)')
+ARCADE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki/Arcade-Cores-List"| awk '/wiki-content/,/wiki-rightbar/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)')
+CORE_URLS="$CORE_URLS user-content-arcade-cores $ARCADE_URLS"
 CORE_CATEGORY="-"
 SD_INSTALLER_PATH=""
 REBOOT_NEEDED="false"
@@ -544,9 +546,13 @@ for CORE_URL in $CORE_URLS; do
 		then
 			CORE_CATEGORY="-"
 		fi
-		if [ "$CORE_CATEGORY" == "computer-cores" ]
+		if [ "$CORE_CATEGORY" == "computer-cores" ] || [[ "$CORE_CATEGORY" =~ [a-z]+-comput[a-z]+ ]]
 		then
 			CORE_CATEGORY="cores"
+		fi
+		if [[ "$CORE_CATEGORY" =~ console.* ]]
+		then
+			CORE_CATEGORY="console-cores"
 		fi
 	fi
 done
