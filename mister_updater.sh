@@ -20,6 +20,7 @@
 
 
 
+# Version 3.5.1 - 2019-12-21 - Code clean up by frederic-mahe (thank you very much).
 # Version 3.5 - 2019-12-04 - Adapt to Wiki sideboard changes for core listings and separate arcade core listing by rarcos, thank you very much.
 # Version 3.4.1 - 2019-12-03 - Added a prompt for PARALLEL_UPDATE.
 # Version 3.4 - 2019-11-30 - Added support for the new filters and gamma tables repository structure; FILTERS_URL="" for disabling filters updating; if you use a custom ADDITIONAL_REPOSITORIES, please remove any Filters entry.
