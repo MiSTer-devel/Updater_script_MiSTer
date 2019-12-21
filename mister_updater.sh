@@ -168,7 +168,7 @@ UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
 #Uncomment this if you want the script to sync the system date and time with a NTP server
 #NTP_SERVER="0.pool.ntp.org"
 AUTOREBOOT="true"
-REBOOT_PAUSE=0
+REBOOT_PAUSE=0  # in seconds
 TEMP_PATH="/tmp"
 TO_BE_DELETED_EXTENSION="to_be_deleted"
 
@@ -797,16 +797,14 @@ then
 fi
 
 echo "Done!"
-if [ $REBOOT_NEEDED == "true" ]
-then
-	if [ $AUTOREBOOT == "true" ]
-	then
-		echo "Rebooting in $REBOOT_PAUSE seconds"
-		sleep $REBOOT_PAUSE
-		reboot now
-	else
-		echo "You should reboot"
-	fi
+if [[ "${REBOOT_NEEDED}" == "true" ]] ; then
+    if [[ "${AUTOREBOOT}" == "true" && "${REBOOT_PAUSE}" -ge 0 ]] ; then
+	echo "Rebooting in ${REBOOT_PAUSE} seconds"
+	sleep "${REBOOT_PAUSE}"
+	reboot now
+    else
+	echo "You should reboot"
+    fi
 fi
 
 exit 0
