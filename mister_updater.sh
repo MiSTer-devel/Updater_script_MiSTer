@@ -287,7 +287,7 @@ then
 fi
 
 function checkCoreURL {
-	echo "Checking $(echo $CORE_URL | sed 's/.*\///g' | sed 's/_MiSTer//gI')"
+	echo "Checking $(sed 's/.*\/// ; s/_MiSTer//' <<< "${CORE_URL}")"
 	[ "${SSH_CLIENT}" != "" ] && echo "URL: $CORE_URL"
 	if echo "$CORE_URL" | grep -qE "SD-Installer"
 	then
