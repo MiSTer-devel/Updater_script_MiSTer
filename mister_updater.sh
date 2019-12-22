@@ -309,9 +309,6 @@ function checkCoreURL {
 			RELEASES_URL="${CORE_URL}/file-list/master/releases"
 			;;
 	esac
-	
-	echo ${RELEASES_URL}
-	
 	RELEASE_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\|\.zip\)\?')
 	
 	MAX_VERSION=""
