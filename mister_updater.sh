@@ -20,6 +20,7 @@
 
 
 
+# Version 3.5.2 - 2019-12-22 - Speed optiomisations; optimisations for the new Wiky layout; when GAMES_SUBDIR="" now the updater checks if /media/fat/games subdir exists and actually contains any file.
 # Version 3.5.1 - 2019-12-21 - Code clean up by frederic-mahe (thank you very much).
 # Version 3.5 - 2019-12-04 - Adapt to Wiki sideboard changes for core listings and separate arcade core listing by rarcos, thank you very much.
 # Version 3.4.1 - 2019-12-03 - Added a prompt for PARALLEL_UPDATE.
@@ -134,7 +135,7 @@ CREATE_CORES_DIRECTORIES="true"
 #GAMES_SUBDIR="" for letting the script choose between /media/fat and /media/fat/games when it exists,
 #otherwise the subdir you prefer (i.e. GAMES_SUBDIR="/Programs").
 GAMES_SUBDIR=""
-if [ "${GAMES_SUBDIR}" == "" ] && [ -d ${BASE_PATH}/games ]
+if [ "${GAMES_SUBDIR}" == "" ] && [ "$(find ${BASE_PATH}/games -type f)" != "" ]
 then
 	GAMES_SUBDIR="/games"
 fi
@@ -268,9 +269,10 @@ fi
 
 [ "${UPDATE_LINUX}" == "true" ] && SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
 
-CORE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki"| awk '/user-content-fpga-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-zA-Z0-9-]*\)')
-ARCADE_URLS=$SD_INSTALLER_URL$'\n'$MISTER_URL$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki/Arcade-Cores-List"| awk '/wiki-content/,/wiki-rightbar/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)')
-CORE_URLS="$CORE_URLS user-content-arcade-cores $ARCADE_URLS"
+CORE_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki"| awk '/user-content-fpga-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-zA-Z0-9-]*\)')
+MENU_URL=$(echo "${CORE_URLS}" | grep -io 'https://github.com/[a-zA-Z0-9./_-]*Menu_MiSTer')
+CORE_URLS=$(echo "${CORE_URLS}" |  sed 's/https:\/\/github.com\/[a-zA-Z0-9.\/_-]*Menu_MiSTer//')
+CORE_URLS=${SD_INSTALLER_URL}$'\n'${MISTER_URL}$'\n'${MENU_URL}$'\n'${CORE_URLS}$'\n'"user-content-arcade-cores"$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki/Arcade-Cores-List"| awk '/wiki-content/,/wiki-rightbar/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)')
 CORE_CATEGORY="-"
 SD_INSTALLER_PATH=""
 REBOOT_NEEDED="false"
@@ -290,12 +292,26 @@ fi
 function checkCoreURL {
 	echo "Checking $(sed 's/.*\/// ; s/_MiSTer//' <<< "${CORE_URL}")"
 	[ "${SSH_CLIENT}" != "" ] && echo "URL: $CORE_URL"
-	if echo "$CORE_URL" | grep -qE "SD-Installer"
-	then
-		RELEASES_URL="$CORE_URL"
-	else
-		RELEASES_URL=https://github.com$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$CORE_URL" | grep -oi '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
-	fi
+	# if echo "$CORE_URL" | grep -qE "SD-Installer"
+	# then
+	# 	RELEASES_URL="$CORE_URL"
+	# else
+	# 	RELEASES_URL=https://github.com$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$CORE_URL" | grep -oi '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
+	# fi
+	case "$CORE_URL" in
+		*SD-Installer*)
+			RELEASES_URL="$CORE_URL"
+			;;
+		*Minimig*)
+			RELEASES_URL="${CORE_URL}/file-list/MiSTer/releases"
+			;;
+		*)
+			RELEASES_URL="${CORE_URL}/file-list/master/releases"
+			;;
+	esac
+	
+	echo ${RELEASES_URL}
+	
 	RELEASE_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\|\.zip\)\?')
 	
 	MAX_VERSION=""
