@@ -20,7 +20,8 @@
 
 
 
-# Version 3.5.2 - 2019-12-22 - Speed optiomisations; optimisations for the new Wiky layout; when GAMES_SUBDIR="" now the updater checks if /media/fat/games subdir exists and actually contains any file.
+# Version 3.5.3 - 2019-12-29 - Optimisation in GAMES_SUBDIR detection.
+# Version 3.5.2 - 2019-12-22 - Speed optimisations; optimisations for the new Wiky layout; when GAMES_SUBDIR="" now the updater checks if /media/fat/games subdir exists and actually contains any file.
 # Version 3.5.1 - 2019-12-21 - Code clean up by frederic-mahe (thank you very much).
 # Version 3.5 - 2019-12-04 - Adapt to Wiki sideboard changes for core listings and separate arcade core listing by rarcos, thank you very much.
 # Version 3.4.1 - 2019-12-03 - Added a prompt for PARALLEL_UPDATE.
@@ -135,7 +136,7 @@ CREATE_CORES_DIRECTORIES="true"
 #GAMES_SUBDIR="" for letting the script choose between /media/fat and /media/fat/games when it exists,
 #otherwise the subdir you prefer (i.e. GAMES_SUBDIR="/Programs").
 GAMES_SUBDIR=""
-if [ "${GAMES_SUBDIR}" == "" ] && [ "$(find ${BASE_PATH}/games -type f)" != "" ]
+if [ "${GAMES_SUBDIR}" == "" ] && [ "$(find ${BASE_PATH}/games -type f -print -quit 2> /dev/null)" != "" ]
 then
 	GAMES_SUBDIR="/games"
 fi
