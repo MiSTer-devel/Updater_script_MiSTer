@@ -80,24 +80,25 @@
 #=========   USER OPTIONS   =========
 #Base directory for all script’s tasks, "/media/fat" for SD root, "/media/usb0" for USB drive root.
 BASE_PATH="/media/fat"
-
-#Directories where all core categories will be downloaded.
-declare -A CORE_CATEGORY_PATHS
-CORE_CATEGORY_PATHS["cores"]="$BASE_PATH/_Computer"
-CORE_CATEGORY_PATHS["console-cores"]="$BASE_PATH/_Console"
-CORE_CATEGORY_PATHS["arcade-cores"]="$BASE_PATH/_Arcade"
-CORE_CATEGORY_PATHS["service-cores"]="$BASE_PATH/_Utility"
+#Directory for MiSTer binaries, should always be "/media/fat" when run on MiSTer.
+MISTER_PATH="/media/fat"
+#Subdirectories where all core categories will be downloaded.
+declare -A CORE_CATEGORY_DIRS
+CORE_CATEGORY_DIRS["cores"]="/_Computer"
+CORE_CATEGORY_DIRS["console-cores"]="/_Console"
+CORE_CATEGORY_DIRS["arcade-cores"]="/_Arcade"
+CORE_CATEGORY_DIRS["service-cores"]="/_Utility"
 
 #Optional pipe "|" separated list of directories containing alternative arcade cores to be updated,
 #each alternative (hack/revision/whatever) arcade is a subdirectory with the name starting like the rbf core with an underscore prefix,
 #i.e. "/media/fat/_Arcade/_Arcade Hacks/_BurgerTime - hack/".
-ARCADE_ALT_PATHS="${CORE_CATEGORY_PATHS["arcade-cores"]}/_Arcade Hacks|${CORE_CATEGORY_PATHS["arcade-cores"]}/_Arcade Revisions"
+ARCADE_ALT_PATHS="${CORE_CATEGORY_DIRS["arcade-cores"]}/_Arcade Hacks|${CORE_CATEGORY_DIRS["arcade-cores"]}/_Arcade Revisions"
 
 #Specifies if old files (cores, main MiSTer executable, menu, SD-Installer, etc.) will be deleted as part of an update.
 DELETE_OLD_FILES="true"
 
 #Specifies what to do with new cores not installed locally:
-#true for downloading new cores in the standard directories (see CORE_CATEGORY_PATHS),
+#true for downloading new cores in the standard directories (see CORE_CATEGORY_DIRS),
 #false for not downloading new cores at all,
 #a string value, i.e. "NewCores", for downloading new cores in the "NewCores" subdirectory.
 DOWNLOAD_NEW_CORES="true"
@@ -169,7 +170,7 @@ CURL_RETRY="--connect-timeout 15 --max-time 120 --retry 3 --retry-delay 5"
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
 SCRIPTS_PATH="Scripts"
 OLD_SCRIPTS_PATH="#Scripts"
-WORK_PATH="/media/fat/$SCRIPTS_PATH/.mister_updater"
+WORK_DIR="/Scripts/.mister_updater"
 #Comment (or uncomment) next lines if you don't want (or want) to update/download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
 ADDITIONAL_REPOSITORIES=(
 #	"https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters"
@@ -192,9 +193,7 @@ REBOOT_PAUSE=0  # in seconds
 TEMP_PATH="/tmp"
 TO_BE_DELETED_EXTENSION="to_be_deleted"
 
-
-
-#========= CODE STARTS HERE =========
+#========= PARSE OPTIONS =========
 
 ORIGINAL_SCRIPT_PATH="$0"
 if [ "$ORIGINAL_SCRIPT_PATH" == "bash" ]
@@ -205,6 +204,72 @@ INI_PATH=${ORIGINAL_SCRIPT_PATH%.*}.ini
 if [ -f $INI_PATH ]
 then
 	eval "$(cat $INI_PATH | tr -d '\r')"
+fi
+
+if [ ! -d "$BASE_PATH" ]
+then
+	echo "BASE_PATH:"
+	echo "$BASE_PATH"
+	echo "is not a directory"
+	exit 4
+fi
+if [ ! -d "$MISTER_PATH" ]
+then
+	echo "MISTER_PATH:"
+	echo "$MISTER_PATH"
+	echo "is not a directory"
+	exit 4
+fi
+if [ "$MISTER_PATH" != "/media/fat" ] && [ "$UPDATE_LINUX" == "true" ]
+then
+	echo "UPDATE_LINUX is not"
+	echo "supported with custom"
+	echo "MISTER_PATH"
+	exit 4
+fi
+#Try to interpret old-style absolute paths
+if [ "${#CORE_CATEGORY_PATHS[@]}" -gt 0 ]
+then
+	echo "WARNING: old option"
+	echo "CORE_CATEGORY_PATHS"
+	echo "detected."
+	echo "This overrides new option"
+	echo "CORE_CATEGORY_DIRS"
+	echo "for backwards"
+	echo "compatibility."
+	unset $CORE_CATEGORY_DIRS
+	for idx in "${!CORE_CATEGORY_PATHS[@]}"
+	do
+		P=$CORE_CATEGORY_PATHS[idx]
+		if [ "${P##${BASE_PATH}}" == "$P" ]
+		then
+			echo "Error interpreting"
+			echo "CORE_CATEGORY_PATHS."
+			echo "Please use new option"
+			echo "CORE_CATEGORY_DIRS"
+			exit 4
+		fi
+		CORE_CATEGORY_DIRS[idx]=${P##${BASE_PATH}}
+	done
+fi
+if [ ! -z "$WORK_PATH" ]
+then
+	echo "WARNING: old option"
+	echo "WORK_PATH"
+	echo "detected."
+	echo "This overrides new option"
+	echo "WORK_DIR"
+	echo "for backwards"
+	echo "compatibility."
+	if [ "${WORK_PATH##${BASE_PATH}}" == "$WORK_PATH" ]
+	then
+		echo "Error interpreting"
+		echo "WORK_PATH."
+		echo "Please use new option"
+		echo "WORK_DIR"
+		exit 4
+	fi
+	WORK_DIR=${WORK_PATH##${BASE_PATH}}
 fi
 
 if [ -d "${BASE_PATH}/${OLD_SCRIPTS_PATH}" ] && [ ! -d "${BASE_PATH}/${SCRIPTS_PATH}" ]
@@ -228,6 +293,8 @@ then
 			echo "$(basename $INI_PATH)"
 			echo ""
 fi
+
+#========= CODE STARTS HERE =========
 
 SSL_SECURITY_OPTION=""
 curl $CURL_RETRY -q https://github.com &>/dev/null
@@ -273,43 +340,48 @@ if [[ -n "${NTP_SERVER}" ]] ; then
     echo
 fi
 
-
-mkdir -p "${CORE_CATEGORY_PATHS[@]}"
+for P in "${CORE_CATEGORY_DIRS[@]}"; do
+  mkdir -p "${BASE_PATH}/${P}"
+done
 if [ "${MAME_ARCADE_ROMS}" == "true" ]
 then
-	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/cores" "${CORE_CATEGORY_PATHS["arcade-cores"]}/mame" "${CORE_CATEGORY_PATHS["arcade-cores"]}/hbmame"
-	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/"*.mra "${CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
-	find "${CORE_CATEGORY_PATHS["arcade-cores"]}" -maxdepth 1 -type f -name '*.mra' -size +165000c -size -166000c -delete
+	mkdir -p "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/cores" "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/mame" "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/hbmame"
+	mv "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/mra_backup/"*.mra "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/" > /dev/null 2>&1
+	find "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}" -maxdepth 1 -type f -name '*.mra' -size +165000c -size -166000c -delete
 elif [ "${MAME_ARCADE_ROMS}" == "false" ]
 then
-	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/cores/"*.rbf "${CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
-	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup"
-	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/"*.mra "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/" > /dev/null 2>&1
+	mv "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/cores/"*.rbf "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/" > /dev/null 2>&1
+	mkdir -p "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/mra_backup"
+	mv "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/"*.mra "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/mra_backup/" > /dev/null 2>&1
 fi
 if [ "${MAME_ALT_ROMS}" == "true" ]
 then
-	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/_alternatives/" "${CORE_CATEGORY_PATHS["arcade-cores"]}/_alternatives/" > /dev/null 2>&1
+	mv "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/mra_backup/_alternatives/" "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/_alternatives/" > /dev/null 2>&1
 elif [ "${MAME_ALT_ROMS}" == "false" ]
 then
-	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup"
-	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/_alternatives/" "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/_alternatives/" > /dev/null 2>&1
+	mkdir -p "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/mra_backup"
+	mv "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/_alternatives/" "${BASE_PATH}/${CORE_CATEGORY_DIRS["arcade-cores"]}/mra_backup/_alternatives/" > /dev/null 2>&1
 fi
-declare -A NEW_CORE_CATEGORY_PATHS
+declare -A NEW_CORE_CATEGORY_DIRS
+
 if [ "$DOWNLOAD_NEW_CORES" != "true" ] && [ "$DOWNLOAD_NEW_CORES" != "false" ] && [ "$DOWNLOAD_NEW_CORES" != "" ]
 then
-	for idx in "${!CORE_CATEGORY_PATHS[@]}"; do
-		NEW_CORE_CATEGORY_PATHS[$idx]=$(echo ${CORE_CATEGORY_PATHS[$idx]} | sed "s/$(echo $BASE_PATH | sed 's/\//\\\//g')/$(echo $BASE_PATH | sed 's/\//\\\//g')\/$DOWNLOAD_NEW_CORES/g")
+	for idx in "${!CORE_CATEGORY_DIRS[@]}"; do
+		NEW_CORE_CATEGORY_DIRS[$idx]="/${DOWNLOAD_NEW_CORES}/${CORE_CATEGORY_DIRS[$idx]}"
 	done
-	mkdir -p "${NEW_CORE_CATEGORY_PATHS[@]}"
+	for P in "${NEW_CORE_CATEGORY_DIRS[@]}"; do
+		mkdir -p "${BASE_PATH}/${P}"
+	done
+	mkdir -p "${BASE_PATH}/${NEW_CORE_CATEGORY_DIRS[@]}"
 	if [ "${MAME_ARCADE_ROMS}" == "true" ]
 	then
-		mkdir -p "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/cores"
-		mv "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/"*.mra "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
+		mkdir -p "${BASE_PATH}/${NEW_CORE_CATEGORY_DIRS["arcade-cores"]}/cores"
+		mv "${BASE_PATH}/${NEW_CORE_CATEGORY_DIRS["arcade-cores"]}/mra_backup/"*.mra "${BASE_PATH}/${NEW_CORE_CATEGORY_DIRS["arcade-cores"]}/" > /dev/null 2>&1
 	elif [ "${MAME_ARCADE_ROMS}" == "false" ]
 	then
-		mv "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/cores/"*.rbf "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
-		mkdir -p "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup"
-		mv "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/"*.mra "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/" > /dev/null 2>&1
+		mv "${BASE_PATH}/${NEW_CORE_CATEGORY_DIRS["arcade-cores"]}/cores/"*.rbf "${BASE_PATH}/${NEW_CORE_CATEGORY_DIRS["arcade-cores"]}/" > /dev/null 2>&1
+		mkdir -p "${BASE_PATH}/${NEW_CORE_CATEGORY_DIRS["arcade-cores"]}/mra_backup"
+		mv "${BASE_PATH}/${NEW_CORE_CATEGORY_DIRS["arcade-cores"]}/"*.mra "${BASE_PATH}/${NEW_CORE_CATEGORY_DIRS["arcade-cores"]}/mra_backup/" > /dev/null 2>&1
 	fi
 fi
 
@@ -414,10 +486,10 @@ function checkCoreURL {
 	fi
 	BASE_FILE_NAME=$(echo "$FILE_NAME" | sed 's/_[0-9]\{8\}.*//g')
 	
-	CURRENT_DIRS="${CORE_CATEGORY_PATHS[$CORE_CATEGORY]}"
-	if [ "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}" != "" ]
+	CURRENT_DIRS="${BASE_PATH}/${CORE_CATEGORY_DIRS[$CORE_CATEGORY]}"
+	if [ "${NEW_CORE_CATEGORY_DIRS[$CORE_CATEGORY]}" != "" ]
 	then
-		CURRENT_DIRS=("$CURRENT_DIRS" "${NEW_CORE_CATEGORY_PATHS[$CORE_CATEGORY]}")
+		CURRENT_DIRS=("$CURRENT_DIRS" "${BASE_PATH}/${NEW_CORE_CATEGORY_DIRS[$CORE_CATEGORY]}")
 	fi 
 	if [ "$CURRENT_DIRS" == "" ]
 	then
@@ -426,8 +498,8 @@ function checkCoreURL {
 	#if [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -qE "SD-Installer|Filters_MiSTer"; }
 	if [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || [[ "${CORE_URL}" =~ SD-Installer|Filters_MiSTer|MRA-Alternatives_MiSTer ]]
 	then
-		mkdir -p "$WORK_PATH"
-		CURRENT_DIRS=("$WORK_PATH")
+		mkdir -p "${BASE_PATH}/${WORK_DIR}"
+		CURRENT_DIRS=("${BASE_PATH}/${WORK_DIR}")
 	fi
 	
 	CURRENT_LOCAL_VERSION=""
@@ -511,8 +583,8 @@ function checkCoreURL {
 		if [[ "${MAX_VERSION}" == "${MAX_LOCAL_VERSION}" ]]
 		then
 			DESTINATION_FILE=$(echo "${MAX_RELEASE_URL}" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
-			ACTUAL_CRC=$(md5sum "/media/fat/${DESTINATION_FILE}" | grep -o "^[^ ]*")
-			SAVED_CRC=$(cat "${WORK_PATH}/${FILE_NAME}")
+			ACTUAL_CRC=$(md5sum "${MISTER_PATH}/${DESTINATION_FILE}" | grep -o "^[^ ]*")
+			SAVED_CRC=$(cat "${BASE_PATH}/${WORK_DIR}/${FILE_NAME}")
 			if [ "$ACTUAL_CRC" != "$SAVED_CRC" ]
 			then
 				mv "${CURRENT_FILE}" "${CURRENT_FILE}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
@@ -539,9 +611,9 @@ function checkCoreURL {
 				then
 					DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
 					echo "Moving $DESTINATION_FILE"
-					rm "/media/fat/$DESTINATION_FILE" > /dev/null 2>&1
-					mv "$CURRENT_DIR/$FILE_NAME" "/media/fat/$DESTINATION_FILE"
-					echo "$(md5sum "/media/fat/${DESTINATION_FILE}" | grep -o "^[^ ]*")" > "${CURRENT_DIR}/${FILE_NAME}"
+					rm "${MISTER_PATH}/$DESTINATION_FILE" > /dev/null 2>&1
+					mv "$CURRENT_DIR/$FILE_NAME" "${MISTER_PATH}/$DESTINATION_FILE"
+					echo "$(md5sum "${MISTER_PATH}/${DESTINATION_FILE}" | grep -o "^[^ ]*")" > "${CURRENT_DIR}/${FILE_NAME}"
 					REBOOT_NEEDED="true"
 				fi
 				#if echo "$CORE_URL" | grep -q "SD-Installer"
@@ -555,12 +627,12 @@ function checkCoreURL {
 					echo "Extracting ${FILE_NAME}"
 					if [[ "${CORE_URL}" =~ MRA-Alternatives_MiSTer ]]
 					then
-						unzip -o "${WORK_PATH}/${FILE_NAME}" -d "${CORE_CATEGORY_PATHS["arcade-cores"]}" 1>&2
+						unzip -o "${BASE_PATH}/${WORK_DIR}/${FILE_NAME}" -d "${CORE_CATEGORY_PATHS["arcade-cores"]}" 1>&2
 					else
-						unzip -o "${WORK_PATH}/${FILE_NAME}" -d "${BASE_PATH}" 1>&2
+						unzip -o "${BASE_PATH}/${WORK_DIR}/${FILE_NAME}" -d "${BASE_PATH}" 1>&2
 					fi
-					rm "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
-					touch "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
+					rm "${BASE_PATH}/${WORK_DIR}/${FILE_NAME}" > /dev/null 2>&1
+					touch "${BASE_PATH}/${WORK_DIR}/${FILE_NAME}" > /dev/null 2>&1
 				fi
 				if [ "$CORE_CATEGORY" == "arcade-cores" ]
 				then
@@ -794,7 +866,7 @@ function checkCheat {
 		MAX_VERSION=$(echo "${FILE_NAME}" | grep -oE "[0-9]{8}")
 		CURRENT_LOCAL_VERSION=""
 		MAX_LOCAL_VERSION=""
-		for CURRENT_FILE in "${WORK_PATH}/mister_${MAPPING_KEY}_"*
+		for CURRENT_FILE in "${BASE_PATH}/${WORK_DIR}/mister_${MAPPING_KEY}_"*
 		do
 			if [ -f "${CURRENT_FILE}" ]
 			then
@@ -818,26 +890,26 @@ function checkCheat {
 		then
 			echo "Downloading ${FILE_NAME}"
 			[ "${SSH_CLIENT}" != "" ] && echo "URL: ${CHEAT_URL}"
-			if curl $CURL_RETRY $SSL_SECURITY_OPTION -L --cookie "challenge=BitMitigate.com" "${CHEAT_URL}" -o "${WORK_PATH}/${FILE_NAME}"
+			if curl $CURL_RETRY $SSL_SECURITY_OPTION -L --cookie "challenge=BitMitigate.com" "${CHEAT_URL}" -o "${BASE_PATH}/${WORK_DIR}/${FILE_NAME}"
 			then
 				if [ ${DELETE_OLD_FILES} == "true" ]
 				then
 					echo "Deleting old mister_${MAPPING_KEY} files"
-					rm "${WORK_PATH}/mister_${MAPPING_KEY}_"*.${TO_BE_DELETED_EXTENSION} > /dev/null 2>&1
+					rm "${BASE_PATH}/${WORK_DIR}/mister_${MAPPING_KEY}_"*.${TO_BE_DELETED_EXTENSION} > /dev/null 2>&1
 				fi
 				mkdir -p "${BASE_PATH}/cheats/${MAPPING_VALUE}"
 				sync
 				echo "Extracting ${FILE_NAME}"
-				unzip -o "${WORK_PATH}/${FILE_NAME}" -d "${BASE_PATH}/cheats/${MAPPING_VALUE}" 1>&2
-				rm "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
-				touch "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
+				unzip -o "${BASE_PATH}/${WORK_DIR}/${FILE_NAME}" -d "${BASE_PATH}/cheats/${MAPPING_VALUE}" 1>&2
+				rm "${BASE_PATH}/${WORK_DIR}/${FILE_NAME}" > /dev/null 2>&1
+				touch "${BASE_PATH}/${WORK_DIR}/${FILE_NAME}" > /dev/null 2>&1
 			else
 				echo "${FILE_NAME} download failed"
-				rm "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
+				rm "${BASE_PATH}/${WORK_DIR}/${FILE_NAME}" > /dev/null 2>&1
 				if [ ${DELETE_OLD_FILES} == "true" ]
 				then
 					echo "Restoring old mister_${MAPPING_KEY} files"
-					for FILE_TO_BE_RESTORED in "${WORK_PATH}/mister_${MAPPING_KEY}_"*.${TO_BE_DELETED_EXTENSION}
+					for FILE_TO_BE_RESTORED in "${BASE_PATH}/${WORK_DIR}/mister_${MAPPING_KEY}_"*.${TO_BE_DELETED_EXTENSION}
 					do
 					  mv "${FILE_TO_BE_RESTORED}" "${FILE_TO_BE_RESTORED%.${TO_BE_DELETED_EXTENSION}}" > /dev/null 2>&1
 					done
@@ -863,7 +935,7 @@ fi
 if [ "$SD_INSTALLER_PATH" != "" ]
 then
 	echo "Linux system must be updated"
-	if [ ! -f "/media/fat/linux/unrar-nonfree" ]
+	if [ ! -f "${MISTER_PATH}/linux/unrar-nonfree" ]
 	then
 		UNRAR_DEB_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9%./_+-]*_armhf\.deb\"' | sed 's/\"//g')
 		MAX_VERSION=""
@@ -885,20 +957,20 @@ then
 		ar -x "$TEMP_PATH/$MAX_RELEASE_URL" data.tar.xz
 		cd "$ORIGINAL_DIR"
 		rm "$TEMP_PATH/$MAX_RELEASE_URL"
-		tar -xJf "$TEMP_PATH/data.tar.xz" --strip-components=3 -C "/media/fat/linux" ./usr/bin/unrar-nonfree
+		tar -xJf "$TEMP_PATH/data.tar.xz" --strip-components=3 -C "${MISTER_PATH}/linux" ./usr/bin/unrar-nonfree
 		rm "$TEMP_PATH/data.tar.xz" > /dev/null 2>&1
 	fi
-	if [ -f "/media/fat/linux/unrar-nonfree" ] && [ -f "$SD_INSTALLER_PATH" ]
+	if [ -f "${MISTER_PATH}/linux/unrar-nonfree" ] && [ -f "$SD_INSTALLER_PATH" ]
 	then
 		sync
-		if /media/fat/linux/unrar-nonfree t "$SD_INSTALLER_PATH"
+		if "${MISTER_PATH}/linux/unrar-nonfree" t "$SD_INSTALLER_PATH"
 		then
-			if [ -d /media/fat/linux.update ]
+			if [ -d "${MISTER_PATH}/linux.update" ]
 			then
-				rm -R "/media/fat/linux.update" > /dev/null 2>&1
+				rm -R "${MISTER_PATH}/linux.update" > /dev/null 2>&1
 			fi
-			mkdir "/media/fat/linux.update"
-			if /media/fat/linux/unrar-nonfree x -y "$SD_INSTALLER_PATH" files/linux/* /media/fat/linux.update
+			mkdir "${MISTER_PATH}/linux.update"
+			if "${MISTER_PATH}/linux/unrar-nonfree" x -y "$SD_INSTALLER_PATH" files/linux/* "${MISTER_PATH}/linux.update"
 			then
 				echo ""
 				echo "======================================================================================"
@@ -914,16 +986,16 @@ then
 				rm "$SD_INSTALLER_PATH" > /dev/null 2>&1
 				touch "$SD_INSTALLER_PATH"
 				sync
-				mv -f "/media/fat/linux.update/files/linux/linux.img" "/media/fat/linux/linux.img.new"
-				mv -f "/media/fat/linux.update/files/linux/"* "/media/fat/linux/"
-				rm -R "/media/fat/linux.update" > /dev/null 2>&1
+				mv -f "${MISTER_PATH}/linux.update/files/linux/linux.img" "${MISTER_PATH}/linux/linux.img.new"
+				mv -f "${MISTER_PATH}/linux.update/files/linux/"* "${MISTER_PATH}/linux/"
+				rm -R "${MISTER_PATH}/linux.update" > /dev/null 2>&1
 				sync
-				/media/fat/linux/updateboot
+				"${MISTER_PATH}/linux/updateboot"
 				sync
-				mv -f "/media/fat/linux/linux.img.new" "/media/fat/linux/linux.img"
+				mv -f "${MISTER_PATH}/linux/linux.img.new" "${MISTER_PATH}/linux/linux.img"
 				sync
 			else
-				rm -R "/media/fat/linux.update" > /dev/null 2>&1
+				rm -R "${MISTER_PATH}/linux.update" > /dev/null 2>&1
 				sync
 			fi
 			REBOOT_NEEDED="true"
