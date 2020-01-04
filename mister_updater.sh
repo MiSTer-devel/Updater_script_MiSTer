@@ -237,10 +237,11 @@ then
 	echo "CORE_CATEGORY_DIRS"
 	echo "for backwards"
 	echo "compatibility."
-	unset $CORE_CATEGORY_DIRS
+	unset CORE_CATEGORY_DIRS
+	declare -A CORE_CATEGORY_DIRS
 	for idx in "${!CORE_CATEGORY_PATHS[@]}"
 	do
-		P=$CORE_CATEGORY_PATHS[idx]
+		P=${CORE_CATEGORY_PATHS[$idx]}
 		if [ "${P##${BASE_PATH}}" == "$P" ]
 		then
 			echo "Error interpreting"
@@ -249,7 +250,7 @@ then
 			echo "CORE_CATEGORY_DIRS"
 			exit 4
 		fi
-		CORE_CATEGORY_DIRS[idx]=${P##${BASE_PATH}}
+		CORE_CATEGORY_DIRS[$idx]=${P##${BASE_PATH}}
 	done
 fi
 if [ ! -z "$WORK_PATH" ]
@@ -337,11 +338,10 @@ if [[ -n "${NTP_SERVER}" ]] ; then
 	# (-b) force time reset, (-s) write output to syslog, (-u) use
 	# unprivileged port for outgoing packets to workaround firewalls
 	ntpdate -b -s -u "${NTP_SERVER}"
-    echo
 fi
 
 for P in "${CORE_CATEGORY_DIRS[@]}"; do
-  mkdir -p "${BASE_PATH}/${P}"
+	mkdir -p "${BASE_PATH}/${P}"
 done
 if [ "${MAME_ARCADE_ROMS}" == "true" ]
 then
