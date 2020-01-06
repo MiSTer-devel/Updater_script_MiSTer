@@ -13,13 +13,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright 2018-2019 Alessandro "Locutus73" Miele
+# Copyright 2018-2020 Alessandro "Locutus73" Miele
 
 # You can download the latest version of this script from:
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
 
 
+# Version 3.6 - 2020-01-06 - Added MAME_ARCADE_ROMS option; when "true" the updater downloads/updates MRA files (MAME Arcade ROMs) for Arcade cores; when using MAME_ARCADE_ROMS="true", please do not add "/cores" to CORE_CATEGORY_PATHS["arcade-cores"]; added MAME_ALT_ROMS option; when "true" the updater downloads/updates alternative MRA files (alternative MAME Arcade ROMs) for Arcade cores.
 # Version 3.5.3 - 2019-12-29 - Optimisation in GAMES_SUBDIR detection.
 # Version 3.5.2 - 2019-12-22 - Speed optimisations; optimisations for the new Wiky layout; when GAMES_SUBDIR="" now the updater checks if /media/fat/games subdir exists and actually contains any file.
 # Version 3.5.1 - 2019-12-21 - Code clean up by frederic-mahe (thank you very much).
@@ -132,6 +133,13 @@ GOOD_CORES_URL=""
 #the first time the core is downloaded.
 CREATE_CORES_DIRECTORIES="true"
 
+#Specifies if the updater has to download/update MRA files (MAME Arcade ROMs) for Arcade cores;
+#when using MAME_ARCADE_ROMS="true", please do not add "/cores" to CORE_CATEGORY_PATHS["arcade-cores"].
+MAME_ARCADE_ROMS="false"
+
+#Specifies if the updater has to download/update alternative MRA files (alternative MAME Arcade ROMs) for Arcade cores;
+MAME_ALT_ROMS="false"
+
 #Specifies the Games/Programs subdirectory where core specific directories will be placed.
 #GAMES_SUBDIR="" for letting the script choose between /media/fat and /media/fat/games when it exists,
 #otherwise the subdir you prefer (i.e. GAMES_SUBDIR="/Programs").
@@ -165,6 +173,7 @@ ADDITIONAL_REPOSITORIES=(
 	"https://github.com/MiSTer-devel/Scripts_MiSTer/tree/master/other_authors|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 )
 FILTERS_URL="https://github.com/MiSTer-devel/Filters_MiSTer"
+MRA_ALT_URL="https://github.com/MiSTer-devel/MRA-Alternatives_MiSTer"
 CHEATS_URL="https://gamehacking.org/mister/"
 CHEAT_MAPPINGS="fds:NES gb:GameBoy gbc:GameBoy gen:Genesis gg:SMS nes:NES pce:TGFX16 sms:SMS snes:SNES"
 UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
@@ -258,7 +267,22 @@ fi
 
 
 mkdir -p "${CORE_CATEGORY_PATHS[@]}"
-
+if [ "${MAME_ARCADE_ROMS}" == "true" ]
+then
+	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/cores" "${CORE_CATEGORY_PATHS["arcade-cores"]}/mame" "${CORE_CATEGORY_PATHS["arcade-cores"]}/hbmame"
+	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/"*.mra "${CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
+else
+	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/cores/"*.rbf "${CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
+	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup"
+	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/"*.mra "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/" > /dev/null 2>&1
+fi
+if [ "${MAME_ALT_ROMS}" == "true" ]
+then
+	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/_alternatives/" "${CORE_CATEGORY_PATHS["arcade-cores"]}/_alternatives/" > /dev/null 2>&1
+else
+	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup"
+	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/_alternatives/" "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/_alternatives/" > /dev/null 2>&1
+fi
 declare -A NEW_CORE_CATEGORY_PATHS
 if [ "$DOWNLOAD_NEW_CORES" != "true" ] && [ "$DOWNLOAD_NEW_CORES" != "false" ] && [ "$DOWNLOAD_NEW_CORES" != "" ]
 then
@@ -266,6 +290,15 @@ then
 		NEW_CORE_CATEGORY_PATHS[$idx]=$(echo ${CORE_CATEGORY_PATHS[$idx]} | sed "s/$(echo $BASE_PATH | sed 's/\//\\\//g')/$(echo $BASE_PATH | sed 's/\//\\\//g')\/$DOWNLOAD_NEW_CORES/g")
 	done
 	mkdir -p "${NEW_CORE_CATEGORY_PATHS[@]}"
+	if [ "${MAME_ARCADE_ROMS}" == "true" ]
+	then
+		mkdir -p "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/cores"
+		mv "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/"*.mra "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
+	else
+		mv "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/cores/"*.rbf "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
+		mkdir -p "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup"
+		mv "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/"*.mra "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/" > /dev/null 2>&1
+	fi
 fi
 
 [ "${UPDATE_LINUX}" == "true" ] && SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
@@ -310,7 +343,15 @@ function checkCoreURL {
 			RELEASES_URL="${CORE_URL}/file-list/master/releases"
 			;;
 	esac
-	RELEASE_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$RELEASES_URL" | grep -o '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\|\.zip\)\?')
+	RELEASES_HTML=""
+	RELEASES_HTML=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sLf "${RELEASES_URL}")
+	RELEASE_URLS=$(echo ${RELEASES_HTML} | grep -oE '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]{8}[a-zA-Z]?(\.rbf|\.rar|\.zip)?')
+	
+	CORE_HAS_MRA="false"
+	if  [ "${CORE_CATEGORY}" == "arcade-cores" ] && [ "${MAME_ARCADE_ROMS}" == "true" ] && { echo "${RELEASES_HTML}" | grep -qE '/MiSTer-devel/[a-zA-Z0-9./_%&#;!()-]*\.mra'; }
+	then
+		CORE_HAS_MRA="true"
+	fi
 	
 	MAX_VERSION=""
 	MAX_RELEASE_URL=""
@@ -365,7 +406,8 @@ function checkCoreURL {
 	then
 		CURRENT_DIRS=("$BASE_PATH")
 	fi
-	if [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -qE "SD-Installer|Filters_MiSTer"; }
+	#if [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -qE "SD-Installer|Filters_MiSTer"; }
+	if [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || [[ "${CORE_URL}" =~ SD-Installer|Filters_MiSTer|MRA-Alternatives_MiSTer ]]
 	then
 		mkdir -p "$WORK_PATH"
 		CURRENT_DIRS=("$WORK_PATH")
@@ -375,6 +417,34 @@ function checkCoreURL {
 	MAX_LOCAL_VERSION=""
 	for CURRENT_DIR in "${CURRENT_DIRS[@]}"
 	do
+		if [ "${CORE_CATEGORY}" == "arcade-cores" ] && [ "${MAME_ARCADE_ROMS}" == "true" ] && [ "${CORE_HAS_MRA}" == "false" ]
+		then
+			case "${BASE_FILE_NAME}" in
+				"CrushRoller")
+					[ -f "${CURRENT_DIR}/Crush Roller.mra" ] && { CORE_HAS_MRA="true"; }
+					;;
+				"MrTNT")
+					[ -f "${CURRENT_DIR}/mr. tnt.mra" ] && { CORE_HAS_MRA="true"; }
+					;;
+				"MsPacman")
+					[ -f "${CURRENT_DIR}/Ms. Pacman.mra" ] && { CORE_HAS_MRA="true"; }
+					;;
+				"PacmanClub")
+					[ -f "${CURRENT_DIR}/Pacman Club.mra" ] && { CORE_HAS_MRA="true"; }
+					;;
+				"PacmanPlus")
+					[ -f "${CURRENT_DIR}/Pacman Plus.mra" ] && { CORE_HAS_MRA="true"; }
+					;;
+				*)
+					[ -f "${CURRENT_DIR}/${BASE_FILE_NAME}.mra" ] && { CORE_HAS_MRA="true"; }
+					;;
+			esac
+		fi
+		if [ "${CORE_HAS_MRA}" == "true" ]
+		then
+			mv "${CURRENT_DIR}/${BASE_FILE_NAME}"_*.rbf "${CURRENT_DIR}/cores/" > /dev/null 2>&1
+			CURRENT_DIR="${CURRENT_DIR}/cores"
+		fi
 		for CURRENT_FILE in "$CURRENT_DIR/$BASE_FILE_NAME"*
 		do
 			if [ -f "$CURRENT_FILE" ]
@@ -435,7 +505,8 @@ function checkCoreURL {
 	
 	if [[ "$MAX_VERSION" > "$MAX_LOCAL_VERSION" ]]
 	then
-		if [ "$DOWNLOAD_NEW_CORES" != "false" ] || [ "$MAX_LOCAL_VERSION" != "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -qE "SD-Installer|Filters_MiSTer"; }
+		#if [ "$DOWNLOAD_NEW_CORES" != "false" ] || [ "$MAX_LOCAL_VERSION" != "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -qE "SD-Installer|Filters_MiSTer"; }
+		if [ "$DOWNLOAD_NEW_CORES" != "false" ] || [ "$MAX_LOCAL_VERSION" != "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || [[ "${CORE_URL}" =~ SD-Installer|Filters_MiSTer|MRA-Alternatives_MiSTer ]]
 		then
 			echo "Downloading $FILE_NAME"
 			[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$MAX_RELEASE_URL?raw=true"
@@ -455,14 +526,21 @@ function checkCoreURL {
 					echo "$(md5sum "/media/fat/${DESTINATION_FILE}" | grep -o "^[^ ]*")" > "${CURRENT_DIR}/${FILE_NAME}"
 					REBOOT_NEEDED="true"
 				fi
-				if echo "$CORE_URL" | grep -q "SD-Installer"
+				#if echo "$CORE_URL" | grep -q "SD-Installer"
+				if [[ "${CORE_URL}" =~ SD-Installer ]]
 				then
 					SD_INSTALLER_PATH="$CURRENT_DIR/$FILE_NAME"
 				fi
-				if echo "$CORE_URL" | grep -q "Filters_MiSTer"
+				#if echo "$CORE_URL" | grep -q "Filters_MiSTer"
+				if [[ "${CORE_URL}" =~ Filters_MiSTer|MRA-Alternatives_MiSTer ]]
 				then
 					echo "Extracting ${FILE_NAME}"
-					unzip -o "${WORK_PATH}/${FILE_NAME}" -d "${BASE_PATH}" 1>&2
+					if [[ "${CORE_URL}" =~ MRA-Alternatives_MiSTer ]]
+					then
+						unzip -o "${WORK_PATH}/${FILE_NAME}" -d "${CORE_CATEGORY_PATHS["arcade-cores"]}" 1>&2
+					else
+						unzip -o "${WORK_PATH}/${FILE_NAME}" -d "${BASE_PATH}" 1>&2
+					fi
 					rm "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
 					touch "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
 				fi
@@ -541,6 +619,86 @@ function checkCoreURL {
 		echo "Nothing to update"
 	fi
 	
+	if [ "${CORE_HAS_MRA}" == "true" ] && [ "${RELEASES_HTML}" != "" ]
+	then
+		ADDITIONAL_REPOSITORY="MRA files|mra|${CURRENT_DIR%%\/cores}"
+		checkAdditionalRepository
+		ADDITIONAL_REPOSITORY=""
+	else
+		echo ""
+	fi
+	RELEASES_HTML=""
+}
+
+function checkAdditionalRepository {
+	OLD_IFS="$IFS"
+	IFS="|"
+	PARAMS=($ADDITIONAL_REPOSITORY)
+	ADDITIONAL_FILES_URL="${PARAMS[0]}"
+	ADDITIONAL_FILES_EXTENSIONS="\($(echo ${PARAMS[1]} | sed 's/ \{1,\}/\\|/g')\)"
+	CURRENT_DIR="${PARAMS[2]}"
+	IFS="$OLD_IFS"
+	if [ ! -d "$CURRENT_DIR" ]
+	then
+		mkdir -p "$CURRENT_DIR"
+	fi
+	echo "Checking $(echo $ADDITIONAL_FILES_URL | sed 's/.*\///g' | awk '{ print toupper( substr( $0, 1, 1 ) ) substr( $0, 2 ); }')"
+	[ "${SSH_CLIENT}" != "" ] && [[ $ADDITIONAL_FILES_URL == http* ]] && echo "URL: $ADDITIONAL_FILES_URL"
+	if echo "$ADDITIONAL_FILES_URL" | grep -q "\/tree\/master\/"
+	then
+		ADDITIONAL_FILES_URL=$(echo "$ADDITIONAL_FILES_URL" | sed 's/\/tree\/master\//\/file-list\/master\//g')
+	else
+		ADDITIONAL_FILES_URL="$ADDITIONAL_FILES_URL/file-list/master"
+	fi
+	if [ "${RELEASES_HTML}" == "" ]
+	then
+		CONTENT_TDS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$ADDITIONAL_FILES_URL")
+	else
+		CONTENT_TDS="${RELEASES_HTML}"
+	fi
+	ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
+	ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
+	for DATETIME_INDEX in "${!ADDITIONAL_FILE_DATETIMES[@]}"; do 
+		ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]=$(echo "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
+		if [ "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" == "" ]
+		then
+			ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]="${ADDITIONAL_FILE_DATETIMES[$((DATETIME_INDEX-1))]}"
+		fi
+	done
+	CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
+	CONTENT_TD_INDEX=0
+	for CONTENT_TD in $CONTENT_TDS; do
+		ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\(\"\|\'\)[a-zA-Z0-9%&#;!()./_-]*\.$ADDITIONAL_FILES_EXTENSIONS\(\"\|\'\)" | sed "s/href=//g" | sed "s/\(\"\|\'\)//g")
+		if [ "$ADDITIONAL_FILE_URL" != "" ]
+		then
+			ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g; s/&#39;/'\''/g')
+			ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_FILE_DATETIMES[$CONTENT_TD_INDEX]}
+			if [ -f "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" ]
+			then
+				ADDITIONAL_LOCAL_FILE_DATETIME=$(date -d "$(stat -c %y "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" 2>/dev/null)" -u +"%Y-%m-%dT%H:%M:%SZ")
+			else
+				ADDITIONAL_LOCAL_FILE_DATETIME=""
+			fi
+			if [ "$ADDITIONAL_LOCAL_FILE_DATETIME" == "" ] || [[ "$ADDITIONAL_ONLINE_FILE_DATETIME" > "$ADDITIONAL_LOCAL_FILE_DATETIME" ]]
+			then
+				echo "Downloading $ADDITIONAL_FILE_NAME"
+				[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true"
+				mv "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
+				if curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
+				then
+					rm "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
+				else
+					echo "${ADDITIONAL_FILE_NAME} download failed"
+					echo "Restoring old ${ADDITIONAL_FILE_NAME} file"
+					rm "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" > /dev/null 2>&1
+					mv "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" > /dev/null 2>&1
+				fi
+				sync
+				echo ""
+			fi
+		fi
+		CONTENT_TD_INDEX=$((CONTENT_TD_INDEX+1))
+	done
 	echo ""
 }
 
@@ -574,6 +732,13 @@ for CORE_URL in $CORE_URLS; do
 done
 wait
 
+if [ "${MAME_ALT_ROMS}" == "true" ]
+then
+	CORE_CATEGORY="-"
+	CORE_URL="${MRA_ALT_URL}"
+	checkCoreURL
+fi
+
 if [ "$FILTERS_URL" != "" ]
 then
 	if [ -d "$BASE_PATH/Filters" ] && dir $BASE_PATH/Filters/* > /dev/null 2>&1 && ! dir $BASE_PATH/Filters/*/ > /dev/null 2>&1 && [ ! -d "$BASE_PATH/Filters_backup" ]
@@ -587,73 +752,6 @@ then
 	CORE_URL="$FILTERS_URL"
 	checkCoreURL
 fi
-
-function checkAdditionalRepository {
-	OLD_IFS="$IFS"
-	IFS="|"
-	PARAMS=($ADDITIONAL_REPOSITORY)
-	ADDITIONAL_FILES_URL="${PARAMS[0]}"
-	ADDITIONAL_FILES_EXTENSIONS="\($(echo ${PARAMS[1]} | sed 's/ \{1,\}/\\|/g')\)"
-	CURRENT_DIR="${PARAMS[2]}"
-	IFS="$OLD_IFS"
-	if [ ! -d "$CURRENT_DIR" ]
-	then
-		mkdir -p "$CURRENT_DIR"
-	fi
-	echo "Checking $(echo $ADDITIONAL_FILES_URL | sed 's/.*\///g' | awk '{ print toupper( substr( $0, 1, 1 ) ) substr( $0, 2 ); }')"
-	[ "${SSH_CLIENT}" != "" ] && echo "URL: $ADDITIONAL_FILES_URL"
-	if echo "$ADDITIONAL_FILES_URL" | grep -q "\/tree\/master\/"
-	then
-		ADDITIONAL_FILES_URL=$(echo "$ADDITIONAL_FILES_URL" | sed 's/\/tree\/master\//\/file-list\/master\//g')
-	else
-		ADDITIONAL_FILES_URL="$ADDITIONAL_FILES_URL/file-list/master"
-	fi
-	CONTENT_TDS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$ADDITIONAL_FILES_URL")
-	ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
-	ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
-	for DATETIME_INDEX in "${!ADDITIONAL_FILE_DATETIMES[@]}"; do 
-		ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]=$(echo "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
-		if [ "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" == "" ]
-		then
-			ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]="${ADDITIONAL_FILE_DATETIMES[$((DATETIME_INDEX-1))]}"
-		fi
-	done
-	CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
-	CONTENT_TD_INDEX=0
-	for CONTENT_TD in $CONTENT_TDS; do
-		ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\(\"\|\'\)[a-zA-Z0-9%()./_-]*\.$ADDITIONAL_FILES_EXTENSIONS\(\"\|\'\)" | sed "s/href=//g" | sed "s/\(\"\|\'\)//g")
-		if [ "$ADDITIONAL_FILE_URL" != "" ]
-		then
-			ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g')
-			ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_FILE_DATETIMES[$CONTENT_TD_INDEX]}
-			if [ -f "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" ]
-			then
-				ADDITIONAL_LOCAL_FILE_DATETIME=$(date -d "$(stat -c %y "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" 2>/dev/null)" -u +"%Y-%m-%dT%H:%M:%SZ")
-			else
-				ADDITIONAL_LOCAL_FILE_DATETIME=""
-			fi
-			if [ "$ADDITIONAL_LOCAL_FILE_DATETIME" == "" ] || [[ "$ADDITIONAL_ONLINE_FILE_DATETIME" > "$ADDITIONAL_LOCAL_FILE_DATETIME" ]]
-			then
-				echo "Downloading $ADDITIONAL_FILE_NAME"
-				[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true"
-				mv "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
-				if curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
-				then
-					rm "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
-				else
-					echo "${ADDITIONAL_FILE_NAME} download failed"
-					echo "Restoring old ${ADDITIONAL_FILE_NAME} file"
-					rm "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" > /dev/null 2>&1
-					mv "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" > /dev/null 2>&1
-				fi
-				sync
-				echo ""
-			fi
-		fi
-		CONTENT_TD_INDEX=$((CONTENT_TD_INDEX+1))
-	done
-	echo ""
-}
 
 for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
 	[ "$PARALLEL_UPDATE" == "true" ] && { echo "$(checkAdditionalRepository)"$'\n' & } || checkAdditionalRepository
