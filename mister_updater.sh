@@ -19,7 +19,7 @@
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
 
-
+# Version 3.6.2 - 2020-01-07 - Changed MAME_ARCADE_ROMS and MAME_ALT_ROMS default value to ""; "true" for using the new MRA directory/file structure; "false" for restoring the old directory/file structure; "" for doing nothing.
 # Version 3.6.1 - 2020-01-07 - Fixed a bug which corrupted the download of MRA files with a single quote char ' in the name.
 # Version 3.6 - 2020-01-06 - Added MAME_ARCADE_ROMS option; when "true" the updater downloads/updates MRA files (MAME Arcade ROMs) for Arcade cores; when using MAME_ARCADE_ROMS="true", please do not add "/cores" to CORE_CATEGORY_PATHS["arcade-cores"]; added MAME_ALT_ROMS option; when "true" the updater downloads/updates alternative MRA files (alternative MAME Arcade ROMs) for Arcade cores.
 # Version 3.5.3 - 2019-12-29 - Optimisation in GAMES_SUBDIR detection.
@@ -135,11 +135,17 @@ GOOD_CORES_URL=""
 CREATE_CORES_DIRECTORIES="true"
 
 #Specifies if the updater has to download/update MRA files (MAME Arcade ROMs) for Arcade cores;
+#"true" for using the new MRA directory/file structure;
+#"false" for restoring the old directory/file structure;
+#"" for doing nothing.
 #when using MAME_ARCADE_ROMS="true", please do not add "/cores" to CORE_CATEGORY_PATHS["arcade-cores"].
-MAME_ARCADE_ROMS="false"
+MAME_ARCADE_ROMS=""
 
 #Specifies if the updater has to download/update alternative MRA files (alternative MAME Arcade ROMs) for Arcade cores;
-MAME_ALT_ROMS="false"
+#"true" for using the new MRA directory/file structure;
+#"false" for restoring the old directory/file structure;
+#"" for doing nothing.
+MAME_ALT_ROMS=""
 
 #Specifies the Games/Programs subdirectory where core specific directories will be placed.
 #GAMES_SUBDIR="" for letting the script choose between /media/fat and /media/fat/games when it exists,
@@ -273,7 +279,8 @@ then
 	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/cores" "${CORE_CATEGORY_PATHS["arcade-cores"]}/mame" "${CORE_CATEGORY_PATHS["arcade-cores"]}/hbmame"
 	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/"*.mra "${CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
 	find "${CORE_CATEGORY_PATHS["arcade-cores"]}" -maxdepth 1 -type f -name '*.mra' -size +165000c -size -166000c -delete
-else
+elif [ "${MAME_ARCADE_ROMS}" == "false" ]
+then
 	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/cores/"*.rbf "${CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
 	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup"
 	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/"*.mra "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/" > /dev/null 2>&1
@@ -281,7 +288,8 @@ fi
 if [ "${MAME_ALT_ROMS}" == "true" ]
 then
 	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/_alternatives/" "${CORE_CATEGORY_PATHS["arcade-cores"]}/_alternatives/" > /dev/null 2>&1
-else
+elif [ "${MAME_ALT_ROMS}" == "false" ]
+then
 	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup"
 	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/_alternatives/" "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/_alternatives/" > /dev/null 2>&1
 fi
@@ -296,7 +304,8 @@ then
 	then
 		mkdir -p "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/cores"
 		mv "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/"*.mra "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
-	else
+	elif [ "${MAME_ARCADE_ROMS}" == "false" ]
+	then
 		mv "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/cores/"*.rbf "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
 		mkdir -p "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup"
 		mv "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/"*.mra "${NEW_CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/" > /dev/null 2>&1
