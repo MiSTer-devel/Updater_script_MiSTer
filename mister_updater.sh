@@ -19,6 +19,7 @@
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
 
+# Version 3.6.3 - 2020-01-09 - Speed optimisations.
 # Version 3.6.2 - 2020-01-07 - Changed MAME_ARCADE_ROMS and MAME_ALT_ROMS default value to ""; "true" for using the new MRA directory/file structure; "false" for restoring the old directory/file structure; "" for doing nothing.
 # Version 3.6.1 - 2020-01-07 - Fixed a bug which corrupted the download of MRA files with a single quote char ' in the name.
 # Version 3.6 - 2020-01-06 - Added MAME_ARCADE_ROMS option; when "true" the updater downloads/updates MRA files (MAME Arcade ROMs) for Arcade cores; when using MAME_ARCADE_ROMS="true", please do not add "/cores" to CORE_CATEGORY_PATHS["arcade-cores"]; added MAME_ALT_ROMS option; when "true" the updater downloads/updates alternative MRA files (alternative MAME Arcade ROMs) for Arcade cores.
@@ -317,15 +318,17 @@ fi
 CORE_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki"| awk '/user-content-fpga-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-zA-Z0-9-]*\)')
 MENU_URL=$(echo "${CORE_URLS}" | grep -io 'https://github.com/[a-zA-Z0-9./_-]*Menu_MiSTer')
 CORE_URLS=$(echo "${CORE_URLS}" |  sed 's/https:\/\/github.com\/[a-zA-Z0-9.\/_-]*Menu_MiSTer//')
-CORE_URLS=${SD_INSTALLER_URL}$'\n'${MISTER_URL}$'\n'${MENU_URL}$'\n'${CORE_URLS}$'\n'"user-content-arcade-cores"$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki/Arcade-Cores-List"| awk '/wiki-content/,/wiki-rightbar/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)')
+CORE_URLS=${SD_INSTALLER_URL}$'\n'${MISTER_URL}$'\n'${MENU_URL}$'\n'${CORE_URLS}$'\n'"user-content-arcade-cores"$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki/Arcade-Cores-List"| awk '/wiki-content/,/wiki-rightbar/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)' | awk '!a[$0]++')
 CORE_CATEGORY="-"
 SD_INSTALLER_PATH=""
 REBOOT_NEEDED="false"
 CORE_CATEGORIES_FILTER=""
 if [ "$REPOSITORIES_FILTER" != "" ]
 then
-	CORE_CATEGORIES_FILTER="^\($( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/\\)\\|\\(/g' )\)$"
-	REPOSITORIES_FILTER="\(Main_MiSTer\)\|\(Menu_MiSTer\)\|\(SD-Installer-Win64_MiSTer\)\|\($( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/\\)\\|\\([\/_-]/g' )\)"
+	#CORE_CATEGORIES_FILTER="^\($( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/\\)\\|\\(/g' )\)$"
+	#REPOSITORIES_FILTER="\(Main_MiSTer\)\|\(Menu_MiSTer\)\|\(SD-Installer-Win64_MiSTer\)\|\($( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/\\)\\|\\([\/_-]/g' )\)"
+	CORE_CATEGORIES_FILTER="^($( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/)|(/g' ))$"
+	REPOSITORIES_FILTER="(Main_MiSTer)|(Menu_MiSTer)|(SD-Installer-Win64_MiSTer)|([\/_-]$( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/)|([\/_-]/g' ))"
 fi
 
 GOOD_CORES=""
@@ -359,7 +362,8 @@ function checkCoreURL {
 	RELEASE_URLS=$(echo ${RELEASES_HTML} | grep -oE '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]{8}[a-zA-Z]?(\.rbf|\.rar|\.zip)?')
 	
 	CORE_HAS_MRA="false"
-	if  [ "${CORE_CATEGORY}" == "arcade-cores" ] && [ "${MAME_ARCADE_ROMS}" == "true" ] && { echo "${RELEASES_HTML}" | grep -qE '/MiSTer-devel/[a-zA-Z0-9./_%&#;!()-]*\.mra'; }
+	#if  [ "${CORE_CATEGORY}" == "arcade-cores" ] && [ "${MAME_ARCADE_ROMS}" == "true" ] && { echo "${RELEASES_HTML}" | grep -qE '/MiSTer-devel/[a-zA-Z0-9./_%&#;!()-]*\.mra'; }
+	if  [ "${CORE_CATEGORY}" == "arcade-cores" ] && [ "${MAME_ARCADE_ROMS}" == "true" ] && [[ "${RELEASES_HTML}" =~ /MiSTer-devel/[a-zA-Z0-9./_%\&#\;!()-]*\.mra ]]
 	then
 		CORE_HAS_MRA="true"
 	fi
@@ -368,11 +372,13 @@ function checkCoreURL {
 	MAX_RELEASE_URL=""
 	GOOD_CORE_VERSION=""
 	for RELEASE_URL in $RELEASE_URLS; do
-		if echo "$RELEASE_URL" | grep -q "SharpMZ"
+		#if echo "$RELEASE_URL" | grep -q "SharpMZ"
+		if [[ "${RELEASE_URL}" =~ SharpMZ ]]
 		then
 			RELEASE_URL=$(echo "$RELEASE_URL"  | grep '\.rbf$')
 		fi			
-		if echo "$RELEASE_URL" | grep -q "Atari800"
+		#if echo "$RELEASE_URL" | grep -q "Atari800"
+		if [[ "${RELEASE_URL}" =~ Atari800 ]]
 		then
 			if [ "$CORE_CATEGORY" == "cores" ]
 			then
@@ -460,7 +466,8 @@ function checkCoreURL {
 		do
 			if [ -f "$CURRENT_FILE" ]
 			then
-				if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\|\.zip\)\?$"
+				#if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\|\.zip\)\?$"
+				if [[ "${CURRENT_FILE}" =~ ${BASE_FILE_NAME}_[0-9]{8}[a-zA-Z]?(\.rbf|\.rar|\.zip)?$ ]]
 				then
 					CURRENT_LOCAL_VERSION=$(echo "$CURRENT_FILE" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
 					if [ "$GOOD_CORE_VERSION" != "" ]
@@ -570,7 +577,8 @@ function checkCoreURL {
 								then
 									for ARCADE_HACK_CORE in "$ARCADE_ALT_DIR/"*.rbf
 									do
-										if [ -f "$ARCADE_HACK_CORE" ] && { echo "$ARCADE_HACK_CORE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\.rbf$"; }
+										#if [ -f "$ARCADE_HACK_CORE" ] && { echo "$ARCADE_HACK_CORE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\.rbf$"; }
+										if [ -f "${ARCADE_HACK_CORE}" ] && [[ "${ARCADE_HACK_CORE}" =~ ${BASE_FILE_NAME}_[0-9]{8}[a-zA-Z]?\.rbf$ ]]
 										then
 											rm "$ARCADE_HACK_CORE"  > /dev/null 2>&1
 										fi
@@ -655,7 +663,8 @@ function checkAdditionalRepository {
 	fi
 	echo "Checking $(echo $ADDITIONAL_FILES_URL | sed 's/.*\///g' | awk '{ print toupper( substr( $0, 1, 1 ) ) substr( $0, 2 ); }')"
 	[ "${SSH_CLIENT}" != "" ] && [[ $ADDITIONAL_FILES_URL == http* ]] && echo "URL: $ADDITIONAL_FILES_URL"
-	if echo "$ADDITIONAL_FILES_URL" | grep -q "\/tree\/master\/"
+	#if echo "$ADDITIONAL_FILES_URL" | grep -q "\/tree\/master\/"
+	if [[ "${ADDITIONAL_FILES_URL}" =~ /tree/master/ ]]
 	then
 		ADDITIONAL_FILES_URL=$(echo "$ADDITIONAL_FILES_URL" | sed 's/\/tree\/master\//\/file-list\/master\//g')
 	else
@@ -718,9 +727,11 @@ function checkAdditionalRepository {
 for CORE_URL in $CORE_URLS; do
 	if [[ $CORE_URL == https://* ]]
 	then
-		if [ "$REPOSITORIES_FILTER" == "" ] || { echo "$CORE_URL" | grep -qi "$REPOSITORIES_FILTER";  } || { echo "$CORE_CATEGORY" | grep -qi "$CORE_CATEGORIES_FILTER";  }
+		#if [ "$REPOSITORIES_FILTER" == "" ] || { echo "$CORE_URL" | grep -qi "$REPOSITORIES_FILTER";  } || { echo "$CORE_CATEGORY" | grep -qi "$CORE_CATEGORIES_FILTER";  }
+		if [ "$REPOSITORIES_FILTER" == "" ] || [[ "${CORE_URL^^}" =~ ${REPOSITORIES_FILTER^^} ]] || [[ "${CORE_CATEGORY^^}" =~ ${CORE_CATEGORIES_FILTER^^} ]]
 		then
-			if echo "$CORE_URL" | grep -qE "(SD-Installer)|(/Main_MiSTer$)|(/Menu_MiSTer$)"
+			#if echo "$CORE_URL" | grep -qE "(SD-Installer)|(/Main_MiSTer$)|(/Menu_MiSTer$)"
+			if [[ "${CORE_URL}"  =~ (SD-Installer)|(/Main_MiSTer$)|(/Menu_MiSTer$) ]]
 			then
 				checkCoreURL
 			else
@@ -787,7 +798,8 @@ function checkCheat {
 		do
 			if [ -f "${CURRENT_FILE}" ]
 			then
-				if echo "${CURRENT_FILE}" | grep -qE "mister_[^_]+_[0-9]{8}.zip"
+				#if echo "${CURRENT_FILE}" | grep -qE "mister_[^_]+_[0-9]{8}.zip"
+				if [[ "${CURRENT_FILE}" =~ mister_[^_]+_[0-9]{8}\.zip ]]
 				then
 					CURRENT_LOCAL_VERSION=$(echo "${CURRENT_FILE}" | grep -oE '[0-9]{8}')
 					[ "${UPDATE_CHEATS}" == "once" ] && CURRENT_LOCAL_VERSION="99999999"
