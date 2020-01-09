@@ -728,19 +728,11 @@ for CORE_URL in $CORE_URLS; do
 			fi
 		fi
 	else
-		CORE_CATEGORY=$(echo "$CORE_URL" | sed 's/user-content-//g')
-		if [ "$CORE_CATEGORY" == "" ]
-		then
-			CORE_CATEGORY="-"
-		fi
-		if [ "$CORE_CATEGORY" == "computer-cores" ] || [[ "$CORE_CATEGORY" =~ [a-z]+-comput[a-z]+ ]]
-		then
-			CORE_CATEGORY="cores"
-		fi
-		if [[ "$CORE_CATEGORY" =~ console.* ]]
-		then
-			CORE_CATEGORY="console-cores"
-		fi
+		case "${CORE_URL}" in
+		    *comput*)   CORE_CATEGORY="cores" ;;
+		    *console.*) CORE_CATEGORY="console-cores" ;;
+		    *)          CORE_CATEGORY="-" ;;
+		esac
 	fi
 done
 wait
