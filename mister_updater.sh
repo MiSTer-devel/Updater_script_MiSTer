@@ -364,6 +364,11 @@ then
 fi
 declare -A NEW_CORE_CATEGORY_DIRS
 
+for P in "${CORE_CATEGORY_DIRS[@]}"; do
+	mkdir -p "${BASE_PATH}/${P}"
+done
+
+declare -A NEW_CORE_CATEGORY_DIRS
 if [ "$DOWNLOAD_NEW_CORES" != "true" ] && [ "$DOWNLOAD_NEW_CORES" != "false" ] && [ "$DOWNLOAD_NEW_CORES" != "" ]
 then
 	for idx in "${!CORE_CATEGORY_DIRS[@]}"; do
