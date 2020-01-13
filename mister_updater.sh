@@ -19,6 +19,7 @@
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
 
+# Version 4.0 - 2020-01-13 - Added report/log of updated cores and additional files at the end of the script; added exit code 100 when there's an error downloading something; now PARALLEL_UPDATE="true" is the default value; added REPOSITORIES_NEGATIVE_FILTER parameter, like REPOSITORIES_FILTER but repository names and core categories must not match the filter, it is processed after REPOSITORIES_FILTER; now the updater only checks repositories which have been actually updated since the last successful update, edit your ini or delete /media/fat/Scripts/.mister_updater/*.last_successful_run files to reset this mechanism; changed MidiLink additional repository to the official MiSTer-devel one.
 # Version 3.6.3 - 2020-01-09 - Speed optimisations.
 # Version 3.6.2 - 2020-01-07 - Changed MAME_ARCADE_ROMS and MAME_ALT_ROMS default value to ""; "true" for using the new MRA directory/file structure; "false" for restoring the old directory/file structure; "" for doing nothing.
 # Version 3.6.1 - 2020-01-07 - Fixed a bug which corrupted the download of MRA files with a single quote char ' in the name.
@@ -115,6 +116,10 @@ REMOVE_ARCADE_PREFIX="true"
 #you need, otherwise cores in the filter, but not on the SD won't be downloaded.
 REPOSITORIES_FILTER=""
 
+#Like REPOSITORIES_FILTER but repository names or core categories must not match the filter;
+#REPOSITORIES_NEGATIVE_FILTER is processed after REPOSITORIES_FILTER.
+REPOSITORIES_NEGATIVE_FILTER=""
+
 #Specifies if the cheats will be downloaded/updated from https://gamehacking.org/
 #"true" for checking for updates each time, "false" for disabling the function,
 #"once" for downloading cheats just once if not on the SD card (no further updating).
@@ -124,7 +129,7 @@ UPDATE_CHEATS="once"
 UPDATE_LINUX="true"
 
 #EXPERIMENTAL: specifies if the update process must be done with parallel processing; use it at your own risk!
-PARALLEL_UPDATE="false"
+PARALLEL_UPDATE="true"
 
 #Specifies an optional URL with a text file containing a curated list of "good" cores.
 #If a core is specified there, it will be preferred over the latest "bleeding edge" core in its repository.
@@ -175,11 +180,13 @@ ADDITIONAL_REPOSITORIES=(
 #	"https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters"
 	"https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|${BASE_PATH}${GAMES_SUBDIR}/GameBoy"
 	"https://github.com/MiSTer-devel/Scripts_MiSTer|sh inc|$BASE_PATH/$SCRIPTS_PATH"
-	"https://github.com/bbond007/MiSTer_MidiLink/tree/master/INSTALL|sh inc|$BASE_PATH/$SCRIPTS_PATH"
+#	"https://github.com/bbond007/MiSTer_MidiLink/tree/master/INSTALL|sh inc|$BASE_PATH/$SCRIPTS_PATH"
+	"https://github.com/MiSTer-devel/MidiLink_MiSTer/tree/master/INSTALL|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 #	"https://github.com/MiSTer-devel/Fonts_MiSTer|pf|$BASE_PATH/font"
 	"https://github.com/MiSTer-devel/NeoGeo_MiSTer/tree/master/releases|xml|${BASE_PATH}${GAMES_SUBDIR}/NeoGeo"
 	"https://github.com/MiSTer-devel/Scripts_MiSTer/tree/master/other_authors|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 )
+MISTER_DEVEL_REPOS_URL="https://api.github.com/orgs/mister-devel/repos"
 FILTERS_URL="https://github.com/MiSTer-devel/Filters_MiSTer"
 MRA_ALT_URL="https://github.com/MiSTer-devel/MRA-Alternatives_MiSTer"
 CHEATS_URL="https://gamehacking.org/mister/"
@@ -205,6 +212,7 @@ INI_PATH=${ORIGINAL_SCRIPT_PATH%.*}.ini
 if [ -f $INI_PATH ]
 then
 	eval "$(cat $INI_PATH | tr -d '\r')"
+	INI_DATETIME_UTC=$(date -d "$(stat -c %y "${INI_PATH}" 2>/dev/null)" -u +"%Y-%m-%dT%H:%M:%SZ")
 fi
 
 if [ -d "${BASE_PATH}/${OLD_SCRIPTS_PATH}" ] && [ ! -d "${BASE_PATH}/${SCRIPTS_PATH}" ]
@@ -273,6 +281,8 @@ if [[ -n "${NTP_SERVER}" ]] ; then
     echo
 fi
 
+UPDATE_START_DATETIME_LOCAL=$(date)
+UPDATE_START_DATETIME_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 mkdir -p "${CORE_CATEGORY_PATHS[@]}"
 if [ "${MAME_ARCADE_ROMS}" == "true" ]
@@ -313,8 +323,15 @@ then
 	fi
 fi
 
+UPDATED_CORES_FILE=$(mktemp)
+ERROR_CORES_FILE=$(mktemp)
+UPDATED_ADDITIONAL_REPOSITORIES_FILE=$(mktemp)
+ERROR_ADDITIONAL_REPOSITORIES_FILE=$(mktemp)
+
 [ "${UPDATE_LINUX}" == "true" ] && SD_INSTALLER_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer"
 
+echo "Downloading MiSTer Wiki structure"
+echo ""
 CORE_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki"| awk '/user-content-fpga-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-zA-Z0-9-]*\)')
 MENU_URL=$(echo "${CORE_URLS}" | grep -io 'https://github.com/[a-zA-Z0-9./_-]*Menu_MiSTer')
 CORE_URLS=$(echo "${CORE_URLS}" |  sed 's/https:\/\/github.com\/[a-zA-Z0-9.\/_-]*Menu_MiSTer//')
@@ -327,8 +344,53 @@ if [ "$REPOSITORIES_FILTER" != "" ]
 then
 	#CORE_CATEGORIES_FILTER="^\($( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/\\)\\|\\(/g' )\)$"
 	#REPOSITORIES_FILTER="\(Main_MiSTer\)\|\(Menu_MiSTer\)\|\(SD-Installer-Win64_MiSTer\)\|\($( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/\\)\\|\\([\/_-]/g' )\)"
-	CORE_CATEGORIES_FILTER="^($( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/)|(/g' ))$"
-	REPOSITORIES_FILTER="(Main_MiSTer)|(Menu_MiSTer)|(SD-Installer-Win64_MiSTer)|([\/_-]$( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/)|([\/_-]/g' ))"
+	CORE_CATEGORIES_FILTER_REGEX="^($( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/)|(/g' ))$"
+	REPOSITORIES_FILTER_REGEX="(Main_MiSTer)|(Menu_MiSTer)|(SD-Installer-Win64_MiSTer)|([\/_-]$( echo "$REPOSITORIES_FILTER" | sed 's/[ 	]\{1,\}/)|([\/_-]/g' ))"
+fi
+if [ "$REPOSITORIES_NEGATIVE_FILTER" != "" ]
+then
+	CORE_CATEGORIES_NEGATIVE_FILTER_REGEX="^($( echo "$REPOSITORIES_NEGATIVE_FILTER" | sed 's/[ 	]\{1,\}/)|(/g' ))$"
+	REPOSITORIES_NEGATIVE_FILTER_REGEX="([\/_-]$( echo "$REPOSITORIES_NEGATIVE_FILTER" | sed 's/[ 	]\{1,\}/)|([\/_-]/g' ))"
+fi
+CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER=""
+LAST_SUCCESSFUL_RUN_PATH="${WORK_PATH}/$(basename ${ORIGINAL_SCRIPT_PATH%.*}.last_successful_run)"
+if [ -f ${LAST_SUCCESSFUL_RUN_PATH} ]
+then
+	LAST_SUCCESSFUL_RUN_DATETIME_UTC=$(cat "${LAST_SUCCESSFUL_RUN_PATH}" | sed '1q;d')
+	LAST_SUCCESSFUL_RUN_INI_DATETIME_UTC=$(cat "${LAST_SUCCESSFUL_RUN_PATH}" | sed '2q;d')
+	
+	if [ "${MISTER_DEVEL_REPOS_URL}" != "" ] && [ "${INI_DATETIME_UTC}" == "${LAST_SUCCESSFUL_RUN_INI_DATETIME_UTC}" ]
+	then
+		echo "Downloading MiSTer-devel updates"
+		echo ""
+		API_PAGE=1
+		API_RESPONSE=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sLf "${MISTER_DEVEL_REPOS_URL}?per_page=100&page=${API_PAGE}" | grep -oE '("svn_url": "[^"]*)|("updated_at": "[^"]*)' | sed 's/"svn_url": "//; s/"updated_at": "//')
+		until [ "${API_RESPONSE}" == "" ]; do
+			for API_RESPONSE_LINE in $API_RESPONSE; do
+				if [[ "${API_RESPONSE_LINE}" =~ https: ]]
+				then
+					if [[ "${LAST_SUCCESSFUL_RUN_DATETIME_UTC}" < "${REPO_UPDATE_DATETIME_UTC}" ]]
+					then
+						CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER="${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER} ${API_RESPONSE_LINE##*/}"
+					fi
+				else
+					REPO_UPDATE_DATETIME_UTC="${API_RESPONSE_LINE}"
+				fi
+			done
+			API_PAGE=$((API_PAGE+1))
+			API_RESPONSE=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sLf "${MISTER_DEVEL_REPOS_URL}?per_page=100&page=${API_PAGE}" | grep -oE '("svn_url": "[^"]*)|("updated_at": "[^"]*)' | sed 's/"svn_url": "//; s/"updated_at": "//')
+		done
+		if [ "${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER}" != "" ]
+		then
+			CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER=$(echo "${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER}" | cut -c2- )
+		else
+			CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER="ZZZZZZZZZ"
+		fi
+	fi
+fi
+if [ "$CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER" != "" ]
+then
+	CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER_REGEX="([\/_-]$( echo "$CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER" | sed 's/[ 	]\{1,\}/)|([\/_-]/g' ))"
 fi
 
 GOOD_CORES=""
@@ -618,6 +680,12 @@ function checkCoreURL {
 						fi
 					fi
 				fi
+				if [[ "${CORE_URL}" =~ Filters_MiSTer|MRA-Alternatives_MiSTer ]]
+				then
+					echo -n ", ${FILE_NAME}" >> "${UPDATED_ADDITIONAL_REPOSITORIES_FILE}"
+				else
+					echo -n ", ${FILE_NAME}" >> "${UPDATED_CORES_FILE}"
+				fi
 			else
 				echo "${FILE_NAME} download failed"
 				rm "${CURRENT_DIR}/${FILE_NAME}" > /dev/null 2>&1
@@ -628,6 +696,12 @@ function checkCoreURL {
 					do
 					  mv "${FILE_TO_BE_RESTORED}" "${FILE_TO_BE_RESTORED%.${TO_BE_DELETED_EXTENSION}}" > /dev/null 2>&1
 					done
+				fi
+				if [[ "${CORE_URL}" =~ Filters_MiSTer|MRA-Alternatives_MiSTer ]]
+				then
+					echo -n ", ${FILE_NAME}" >> "${ERROR_ADDITIONAL_REPOSITORIES_FILE}"
+				else
+					echo -n ", ${FILE_NAME}" >> "${ERROR_CORES_FILE}"
 				fi
 			fi
 			sync
@@ -657,85 +731,108 @@ function checkAdditionalRepository {
 	ADDITIONAL_FILES_EXTENSIONS="\($(echo ${PARAMS[1]} | sed 's/ \{1,\}/\\|/g')\)"
 	CURRENT_DIR="${PARAMS[2]}"
 	IFS="$OLD_IFS"
-	if [ ! -d "$CURRENT_DIR" ]
-	then
-		mkdir -p "$CURRENT_DIR"
-	fi
+	
 	echo "Checking $(echo $ADDITIONAL_FILES_URL | sed 's/.*\///g' | awk '{ print toupper( substr( $0, 1, 1 ) ) substr( $0, 2 ); }')"
-	[ "${SSH_CLIENT}" != "" ] && [[ $ADDITIONAL_FILES_URL == http* ]] && echo "URL: $ADDITIONAL_FILES_URL"
-	#if echo "$ADDITIONAL_FILES_URL" | grep -q "\/tree\/master\/"
-	if [[ "${ADDITIONAL_FILES_URL}" =~ /tree/master/ ]]
+	if ! [[ "${ADDITIONAL_FILES_URL}" == https://github.com/MiSTer-devel/* ]] || [ "$CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER" == "" ] || [[ "${ADDITIONAL_FILES_URL^^}" =~ ${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER_REGEX^^} ]]
 	then
-		ADDITIONAL_FILES_URL=$(echo "$ADDITIONAL_FILES_URL" | sed 's/\/tree\/master\//\/file-list\/master\//g')
-	else
-		ADDITIONAL_FILES_URL="$ADDITIONAL_FILES_URL/file-list/master"
-	fi
-	if [ "${RELEASES_HTML}" == "" ]
-	then
-		CONTENT_TDS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$ADDITIONAL_FILES_URL")
-	else
-		CONTENT_TDS="${RELEASES_HTML}"
-	fi
-	ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
-	ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
-	for DATETIME_INDEX in "${!ADDITIONAL_FILE_DATETIMES[@]}"; do 
-		ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]=$(echo "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
-		if [ "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" == "" ]
+		if [ ! -d "$CURRENT_DIR" ]
 		then
-			ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]="${ADDITIONAL_FILE_DATETIMES[$((DATETIME_INDEX-1))]}"
+			mkdir -p "$CURRENT_DIR"
 		fi
-	done
-	CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
-	CONTENT_TD_INDEX=0
-	for CONTENT_TD in $CONTENT_TDS; do
-		#ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\(\"\|\'\)[a-zA-Z0-9%&#;!()./_-]*\.$ADDITIONAL_FILES_EXTENSIONS\(\"\|\'\)" | sed "s/href=//g" | sed "s/\(\"\|\'\)//g")
-		ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\(\"\|\'\)[a-zA-Z0-9%&#;!()./_-]*\.$ADDITIONAL_FILES_EXTENSIONS\(\"\|\'\)" | sed "s/href=//g; s/\(\"\|\'\)//g; s/&#39;/'/g")
-		if [ "$ADDITIONAL_FILE_URL" != "" ]
+		[ "${SSH_CLIENT}" != "" ] && [[ $ADDITIONAL_FILES_URL == http* ]] && echo "URL: $ADDITIONAL_FILES_URL"
+		#if echo "$ADDITIONAL_FILES_URL" | grep -q "\/tree\/master\/"
+		if [[ "${ADDITIONAL_FILES_URL}" =~ /tree/master/ ]]
 		then
-			#ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g; s/&#39;/'\''/g')
-			ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g')
-			ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_FILE_DATETIMES[$CONTENT_TD_INDEX]}
-			if [ -f "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" ]
+			ADDITIONAL_FILES_URL=$(echo "$ADDITIONAL_FILES_URL" | sed 's/\/tree\/master\//\/file-list\/master\//g')
+		else
+			ADDITIONAL_FILES_URL="$ADDITIONAL_FILES_URL/file-list/master"
+		fi
+		if [ "${RELEASES_HTML}" == "" ]
+		then
+			CONTENT_TDS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$ADDITIONAL_FILES_URL")
+		else
+			CONTENT_TDS="${RELEASES_HTML}"
+		fi
+		ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
+		ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
+		for DATETIME_INDEX in "${!ADDITIONAL_FILE_DATETIMES[@]}"; do 
+			ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]=$(echo "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
+			if [ "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" == "" ]
 			then
-				ADDITIONAL_LOCAL_FILE_DATETIME=$(date -d "$(stat -c %y "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" 2>/dev/null)" -u +"%Y-%m-%dT%H:%M:%SZ")
-			else
-				ADDITIONAL_LOCAL_FILE_DATETIME=""
+				ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]="${ADDITIONAL_FILE_DATETIMES[$((DATETIME_INDEX-1))]}"
 			fi
-			if [ "$ADDITIONAL_LOCAL_FILE_DATETIME" == "" ] || [[ "$ADDITIONAL_ONLINE_FILE_DATETIME" > "$ADDITIONAL_LOCAL_FILE_DATETIME" ]]
+		done
+		CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
+		CONTENT_TD_INDEX=0
+		for CONTENT_TD in $CONTENT_TDS; do
+			#ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\(\"\|\'\)[a-zA-Z0-9%&#;!()./_-]*\.$ADDITIONAL_FILES_EXTENSIONS\(\"\|\'\)" | sed "s/href=//g" | sed "s/\(\"\|\'\)//g")
+			ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\(\"\|\'\)[a-zA-Z0-9%&#;!()./_-]*\.$ADDITIONAL_FILES_EXTENSIONS\(\"\|\'\)" | sed "s/href=//g; s/\(\"\|\'\)//g; s/&#39;/'/g")
+			if [ "$ADDITIONAL_FILE_URL" != "" ]
 			then
-				echo "Downloading $ADDITIONAL_FILE_NAME"
-				[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true"
-				mv "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
-				if curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
+				#ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g; s/&#39;/'\''/g')
+				ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g')
+				ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_FILE_DATETIMES[$CONTENT_TD_INDEX]}
+				if [ -f "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" ]
 				then
-					rm "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
+					ADDITIONAL_LOCAL_FILE_DATETIME=$(date -d "$(stat -c %y "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" 2>/dev/null)" -u +"%Y-%m-%dT%H:%M:%SZ")
 				else
-					echo "${ADDITIONAL_FILE_NAME} download failed"
-					echo "Restoring old ${ADDITIONAL_FILE_NAME} file"
-					rm "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" > /dev/null 2>&1
-					mv "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" > /dev/null 2>&1
+					ADDITIONAL_LOCAL_FILE_DATETIME=""
 				fi
-				sync
-				echo ""
+				if [ "$ADDITIONAL_LOCAL_FILE_DATETIME" == "" ] || [[ "$ADDITIONAL_ONLINE_FILE_DATETIME" > "$ADDITIONAL_LOCAL_FILE_DATETIME" ]]
+				then
+					echo "Downloading $ADDITIONAL_FILE_NAME"
+					[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true"
+					mv "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
+					if curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
+					then
+						rm "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
+						if [[ "${ADDITIONAL_FILE_NAME}" =~ \.mra ]]
+						then
+							echo -n ", ${ADDITIONAL_FILE_NAME}" >> "${UPDATED_CORES_FILE}"
+						else
+							echo -n ", ${ADDITIONAL_FILE_NAME}" >> "${UPDATED_ADDITIONAL_REPOSITORIES_FILE}"
+						fi
+					else
+						echo "${ADDITIONAL_FILE_NAME} download failed"
+						echo "Restoring old ${ADDITIONAL_FILE_NAME} file"
+						rm "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" > /dev/null 2>&1
+						mv "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" > /dev/null 2>&1
+						if [[ "${ADDITIONAL_FILE_NAME}" =~ \.mra ]]
+						then
+							echo -n ", ${ADDITIONAL_FILE_NAME}" >> "${ERROR_CORES_FILE}"
+						else
+							echo -n ", ${ADDITIONAL_FILE_NAME}" >> "${ERROR_ADDITIONAL_REPOSITORIES_FILE}"
+						fi
+					fi
+					sync
+					echo ""
+				fi
 			fi
-		fi
-		CONTENT_TD_INDEX=$((CONTENT_TD_INDEX+1))
-	done
-	echo ""
+			CONTENT_TD_INDEX=$((CONTENT_TD_INDEX+1))
+		done
+		echo ""
+	fi
+	
 }
 
 for CORE_URL in $CORE_URLS; do
 	if [[ $CORE_URL == https://* ]]
 	then
 		#if [ "$REPOSITORIES_FILTER" == "" ] || { echo "$CORE_URL" | grep -qi "$REPOSITORIES_FILTER";  } || { echo "$CORE_CATEGORY" | grep -qi "$CORE_CATEGORIES_FILTER";  }
-		if [ "$REPOSITORIES_FILTER" == "" ] || [[ "${CORE_URL^^}" =~ ${REPOSITORIES_FILTER^^} ]] || [[ "${CORE_CATEGORY^^}" =~ ${CORE_CATEGORIES_FILTER^^} ]]
+		if [ "$REPOSITORIES_FILTER" == "" ] || [[ "${CORE_URL^^}" =~ ${REPOSITORIES_FILTER_REGEX^^} ]] || [[ "${CORE_CATEGORY^^}" =~ ${CORE_CATEGORIES_FILTER_REGEX^^} ]]
 		then
-			#if echo "$CORE_URL" | grep -qE "(SD-Installer)|(/Main_MiSTer$)|(/Menu_MiSTer$)"
-			if [[ "${CORE_URL}"  =~ (SD-Installer)|(/Main_MiSTer$)|(/Menu_MiSTer$) ]]
+			if [ "$REPOSITORIES_NEGATIVE_FILTER" == "" ] || { ! [[ "${CORE_URL^^}" =~ ${REPOSITORIES_NEGATIVE_FILTER_REGEX^^} ]] && ! [[ "${CORE_CATEGORY^^}" =~ ${CORE_CATEGORIES_NEGATIVE_FILTER_REGEX^^} ]]; }
 			then
-				checkCoreURL
-			else
-				[ "$PARALLEL_UPDATE" == "true" ] && { echo "$(checkCoreURL)"$'\n' & } || checkCoreURL
+				if [ "$CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER" == "" ] || [[ "${CORE_URL^^}" =~ ${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER_REGEX^^} ]]
+				then
+					#if echo "$CORE_URL" | grep -qE "(SD-Installer)|(/Main_MiSTer$)|(/Menu_MiSTer$)"
+					if [[ "${CORE_URL}"  =~ (SD-Installer)|(/Main_MiSTer$)|(/Menu_MiSTer$) ]]
+					then
+						checkCoreURL
+					else
+						[ "$PARALLEL_UPDATE" == "true" ] && { echo "$(checkCoreURL)"$'\n' & } || checkCoreURL
+					fi
+				fi
 			fi
 		fi
 	else
@@ -760,7 +857,10 @@ if [ "${MAME_ALT_ROMS}" == "true" ]
 then
 	CORE_CATEGORY="-"
 	CORE_URL="${MRA_ALT_URL}"
-	checkCoreURL
+	if [ "$CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER" == "" ] || [[ "${CORE_URL^^}" =~ ${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER_REGEX^^} ]]
+	then
+		checkCoreURL
+	fi
 fi
 
 if [ "$FILTERS_URL" != "" ]
@@ -774,7 +874,10 @@ then
 	fi
 	CORE_CATEGORY="-"
 	CORE_URL="$FILTERS_URL"
-	checkCoreURL
+	if [ "$CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER" == "" ] || [[ "${CORE_URL^^}" =~ ${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER_REGEX^^} ]]
+	then
+		checkCoreURL
+	fi
 fi
 
 for ADDITIONAL_REPOSITORY in "${ADDITIONAL_REPOSITORIES[@]}"; do
@@ -831,6 +934,7 @@ function checkCheat {
 				unzip -o "${WORK_PATH}/${FILE_NAME}" -d "${BASE_PATH}/cheats/${MAPPING_VALUE}" 1>&2
 				rm "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
 				touch "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
+				echo -n ", ${FILE_NAME}" >> "${UPDATED_ADDITIONAL_REPOSITORIES_FILE}"
 			else
 				echo "${FILE_NAME} download failed"
 				rm "${WORK_PATH}/${FILE_NAME}" > /dev/null 2>&1
@@ -842,6 +946,7 @@ function checkCheat {
 					  mv "${FILE_TO_BE_RESTORED}" "${FILE_TO_BE_RESTORED%.${TO_BE_DELETED_EXTENSION}}" > /dev/null 2>&1
 					done
 				fi
+				echo -n ", ${FILE_NAME}" >> "${ERROR_ADDITIONAL_REPOSITORIES_FILE}"
 			fi
 			sync
 		fi
@@ -858,6 +963,59 @@ then
 		[ "$PARALLEL_UPDATE" == "true" ] && { echo "$(checkCheat)"$'\n' & } || checkCheat
 	done
 	wait
+fi
+
+EXIT_CODE=0
+LOG_PATH="${WORK_PATH}/$(basename ${ORIGINAL_SCRIPT_PATH%.*}.log)"
+echo "Update started at" > "${LOG_PATH}"
+echo "${UPDATE_START_DATETIME_LOCAL}" >> "${LOG_PATH}"
+echo "" >> "${LOG_PATH}"
+echo "Successfully updated cores:" >> "${LOG_PATH}"
+if [ "$(cat "${UPDATED_CORES_FILE}")" != "" ]
+then
+	cat "${UPDATED_CORES_FILE}" | cut -c3- >> "${LOG_PATH}"
+else
+	echo "none" >> "${LOG_PATH}"
+fi
+rm "${UPDATED_CORES_FILE}" > /dev/null 2>&1
+echo "" >> "${LOG_PATH}"
+echo "Error updating these cores:" >> "${LOG_PATH}"
+if [ "$(cat "${ERROR_CORES_FILE}")" != "" ]
+then
+	cat "${ERROR_CORES_FILE}" | cut -c3- >> "${LOG_PATH}"
+	EXIT_CODE=100
+else
+	 echo "none" >> "${LOG_PATH}"
+fi
+rm "${ERROR_CORES_FILE}" > /dev/null 2>&1
+echo "" >> "${LOG_PATH}"
+echo "Successfully updated additional files:" >> "${LOG_PATH}"
+if [ "$(cat "${UPDATED_ADDITIONAL_REPOSITORIES_FILE}")" != "" ]
+then
+	cat "${UPDATED_ADDITIONAL_REPOSITORIES_FILE}" | cut -c3- >> "${LOG_PATH}"
+else
+	 echo "none" >> "${LOG_PATH}"
+fi
+rm "${UPDATED_ADDITIONAL_REPOSITORIES_FILE}" > /dev/null 2>&1
+echo "" >> "${LOG_PATH}"
+echo "Error updating these additional files:" >> "${LOG_PATH}"
+if [ "$(cat "${ERROR_ADDITIONAL_REPOSITORIES_FILE}")" != "" ]
+then
+	cat "${ERROR_ADDITIONAL_REPOSITORIES_FILE}" | cut -c3- >> "${LOG_PATH}"
+	EXIT_CODE=100
+else
+	 echo "none" >> "${LOG_PATH}"
+fi
+rm "${ERROR_ADDITIONAL_REPOSITORIES_FILE}" > /dev/null 2>&1
+echo "Updater log, see ${LOG_PATH}"
+echo "==========================="
+cat "${LOG_PATH}"
+echo "==========================="
+echo ""
+if [ "${EXIT_CODE}" == "0" ]
+then
+	echo "${UPDATE_START_DATETIME_UTC}" > "${LAST_SUCCESSFUL_RUN_PATH}"
+	[ "${INI_DATETIME_UTC}" != "" ] && echo "${INI_DATETIME_UTC}" >> "${LAST_SUCCESSFUL_RUN_PATH}"
 fi
 
 if [ "$SD_INSTALLER_PATH" != "" ]
@@ -945,4 +1103,4 @@ if [[ "${REBOOT_NEEDED}" == "true" ]] ; then
     fi
 fi
 
-exit 0
+exit ${EXIT_CODE}
