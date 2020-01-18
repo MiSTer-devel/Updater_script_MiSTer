@@ -19,6 +19,7 @@
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
 
+# Version 4.0.1 - 2020-01-18 - Improved script output.
 # Version 4.0 - 2020-01-13 - Added report/log of updated cores and additional files at the end of the script; added exit code 100 when there's an error downloading something; now PARALLEL_UPDATE="true" is the default value; added REPOSITORIES_NEGATIVE_FILTER parameter, like REPOSITORIES_FILTER but repository names and core categories must not match the filter, it is processed after REPOSITORIES_FILTER; now the updater only checks repositories which have been actually updated since the last successful update, edit your ini or delete /media/fat/Scripts/.mister_updater/*.last_successful_run files to reset this mechanism; changed MidiLink additional repository to the official MiSTer-devel one.
 # Version 3.6.3 - 2020-01-09 - Speed optimisations.
 # Version 3.6.2 - 2020-01-07 - Changed MAME_ARCADE_ROMS and MAME_ALT_ROMS default value to ""; "true" for using the new MRA directory/file structure; "false" for restoring the old directory/file structure; "" for doing nothing.
@@ -226,16 +227,16 @@ then
 	exit 3
 fi
 
-if [ "$PARALLEL_UPDATE" != "true" ]
-then
-			echo "Do you want a"
-			echo "faster update?"
-			echo "Please try"
-			echo "PARALLEL_UPDATE=\"true\""
-			echo "in your"
-			echo "$(basename $INI_PATH)"
-			echo ""
-fi
+#if [ "$PARALLEL_UPDATE" != "true" ]
+#then
+#			echo "Do you want a"
+#			echo "faster update?"
+#			echo "Please try"
+#			echo "PARALLEL_UPDATE=\"true\""
+#			echo "in your"
+#			echo "$(basename $INI_PATH)"
+#			echo ""
+#fi
 
 SSL_SECURITY_OPTION=""
 curl $CURL_RETRY -q https://github.com &>/dev/null
@@ -332,10 +333,10 @@ ERROR_ADDITIONAL_REPOSITORIES_FILE=$(mktemp)
 
 echo "Downloading MiSTer Wiki structure"
 echo ""
-CORE_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki"| awk '/user-content-fpga-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-zA-Z0-9-]*\)')
+CORE_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "$MISTER_URL/wiki"| awk '/user-content-fpga-cores/,/user-content-development/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)\|\(user-content-[a-zA-Z0-9-]*\)')
 MENU_URL=$(echo "${CORE_URLS}" | grep -io 'https://github.com/[a-zA-Z0-9./_-]*Menu_MiSTer')
 CORE_URLS=$(echo "${CORE_URLS}" |  sed 's/https:\/\/github.com\/[a-zA-Z0-9.\/_-]*Menu_MiSTer//')
-CORE_URLS=${SD_INSTALLER_URL}$'\n'${MISTER_URL}$'\n'${MENU_URL}$'\n'${CORE_URLS}$'\n'"user-content-arcade-cores"$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$MISTER_URL/wiki/Arcade-Cores-List"| awk '/wiki-content/,/wiki-rightbar/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)' | awk '!a[$0]++')
+CORE_URLS=${SD_INSTALLER_URL}$'\n'${MISTER_URL}$'\n'${MENU_URL}$'\n'${CORE_URLS}$'\n'"user-content-arcade-cores"$'\n'$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "$MISTER_URL/wiki/Arcade-Cores-List"| awk '/wiki-content/,/wiki-rightbar/' | grep -io '\(https://github.com/[a-zA-Z0-9./_-]*_MiSTer\)' | awk '!a[$0]++')
 CORE_CATEGORY="-"
 SD_INSTALLER_PATH=""
 REBOOT_NEEDED="false"
@@ -364,7 +365,7 @@ then
 		echo "Downloading MiSTer-devel updates"
 		echo ""
 		API_PAGE=1
-		API_RESPONSE=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sLf "${MISTER_DEVEL_REPOS_URL}?per_page=100&page=${API_PAGE}" | grep -oE '("svn_url": "[^"]*)|("updated_at": "[^"]*)' | sed 's/"svn_url": "//; s/"updated_at": "//')
+		API_RESPONSE=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sSLf "${MISTER_DEVEL_REPOS_URL}?per_page=100&page=${API_PAGE}" | grep -oE '("svn_url": "[^"]*)|("updated_at": "[^"]*)' | sed 's/"svn_url": "//; s/"updated_at": "//')
 		until [ "${API_RESPONSE}" == "" ]; do
 			for API_RESPONSE_LINE in $API_RESPONSE; do
 				if [[ "${API_RESPONSE_LINE}" =~ https: ]]
@@ -378,7 +379,7 @@ then
 				fi
 			done
 			API_PAGE=$((API_PAGE+1))
-			API_RESPONSE=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sLf "${MISTER_DEVEL_REPOS_URL}?per_page=100&page=${API_PAGE}" | grep -oE '("svn_url": "[^"]*)|("updated_at": "[^"]*)' | sed 's/"svn_url": "//; s/"updated_at": "//')
+			API_RESPONSE=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sSLf "${MISTER_DEVEL_REPOS_URL}?per_page=100&page=${API_PAGE}" | grep -oE '("svn_url": "[^"]*)|("updated_at": "[^"]*)' | sed 's/"svn_url": "//; s/"updated_at": "//')
 		done
 		if [ "${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER}" != "" ]
 		then
@@ -396,7 +397,7 @@ fi
 GOOD_CORES=""
 if [ "$GOOD_CORES_URL" != "" ]
 then
-	GOOD_CORES=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$GOOD_CORES_URL")
+	GOOD_CORES=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "$GOOD_CORES_URL")
 fi
 
 function checkCoreURL {
@@ -406,7 +407,7 @@ function checkCoreURL {
 	# then
 	# 	RELEASES_URL="$CORE_URL"
 	# else
-	# 	RELEASES_URL=https://github.com$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$CORE_URL" | grep -oi '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
+	# 	RELEASES_URL=https://github.com$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "$CORE_URL" | grep -oi '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
 	# fi
 	case "$CORE_URL" in
 		*SD-Installer*)
@@ -420,7 +421,7 @@ function checkCoreURL {
 			;;
 	esac
 	RELEASES_HTML=""
-	RELEASES_HTML=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sLf "${RELEASES_URL}")
+	RELEASES_HTML=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sSLf "${RELEASES_URL}")
 	RELEASE_URLS=$(echo ${RELEASES_HTML} | grep -oE '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]{8}[a-zA-Z]?(\.rbf|\.rar|\.zip)?')
 	
 	CORE_HAS_MRA="false"
@@ -590,7 +591,7 @@ function checkCoreURL {
 		then
 			echo "Downloading $FILE_NAME"
 			[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$MAX_RELEASE_URL?raw=true"
-			if curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
+			if curl $CURL_RETRY $SSL_SECURITY_OPTION $([ "${PARALLEL_UPDATE}" == "true" ] && echo "-sS") -L "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
 			then
 				if [ ${DELETE_OLD_FILES} == "true" ]
 				then
@@ -670,7 +671,7 @@ function checkCoreURL {
 								;;
 							*)
 								CORE_SOURCE_URL="$(echo "https://github.com$MAX_RELEASE_URL" | sed 's/releases.*//g')${BASE_FILE_NAME}.sv"
-								CORE_INTERNAL_NAME="$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "${CORE_SOURCE_URL}?raw=true" | awk '/CONF_STR[^=]*=/,/;/' | grep -oE -m1 '".*?;' | sed 's/[";]//g')"
+								CORE_INTERNAL_NAME="$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "${CORE_SOURCE_URL}?raw=true" | awk '/CONF_STR[^=]*=/,/;/' | grep -oE -m1 '".*?;' | sed 's/[";]//g')"
 								;;
 						esac
 						if [ "$CORE_INTERNAL_NAME" != "" ]
@@ -749,7 +750,7 @@ function checkAdditionalRepository {
 		fi
 		if [ "${RELEASES_HTML}" == "" ]
 		then
-			CONTENT_TDS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$ADDITIONAL_FILES_URL")
+			CONTENT_TDS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "$ADDITIONAL_FILES_URL")
 		else
 			CONTENT_TDS="${RELEASES_HTML}"
 		fi
@@ -783,7 +784,7 @@ function checkAdditionalRepository {
 					echo "Downloading $ADDITIONAL_FILE_NAME"
 					[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true"
 					mv "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
-					if curl $CURL_RETRY $SSL_SECURITY_OPTION -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
+					if curl $CURL_RETRY $SSL_SECURITY_OPTION $([ "${PARALLEL_UPDATE}" == "true" ] && echo "-sS") -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
 					then
 						rm "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
 						if [[ "${ADDITIONAL_FILE_NAME}" =~ \.mra ]]
@@ -958,7 +959,7 @@ if [ "${UPDATE_CHEATS}" != "false" ]
 then
 	echo "Checking Cheats"
 	echo ""
-	CHEAT_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf --cookie "challenge=BitMitigate.com" "${CHEATS_URL}" | grep -oE '"mister_[^_]+_[0-9]{8}.zip"' | sed 's/"//g')
+	CHEAT_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf --cookie "challenge=BitMitigate.com" "${CHEATS_URL}" | grep -oE '"mister_[^_]+_[0-9]{8}.zip"' | sed 's/"//g')
 	for CHEAT_MAPPING in ${CHEAT_MAPPINGS}; do
 		[ "$PARALLEL_UPDATE" == "true" ] && { echo "$(checkCheat)"$'\n' & } || checkCheat
 	done
@@ -1007,6 +1008,14 @@ else
 	 echo "none" >> "${LOG_PATH}"
 fi
 rm "${ERROR_ADDITIONAL_REPOSITORIES_FILE}" > /dev/null 2>&1
+if [ "${EXIT_CODE}" != "0" ] && [ "$PARALLEL_UPDATE" == "true" ]
+then
+	echo "" >> "${LOG_PATH}"
+	echo "If you experience frequent download errors" >> "${LOG_PATH}"
+	echo "maybe the parallel update is hitting your network too hard" >> "${LOG_PATH}"
+	echo "please try PARALLEL_UPDATE=\"false\" in" >> "${LOG_PATH}"
+	echo "${INI_PATH}" >> "${LOG_PATH}"
+fi
 echo "Updater log, see ${LOG_PATH}"
 echo "==========================="
 cat "${LOG_PATH}"
@@ -1017,13 +1026,14 @@ then
 	echo "${UPDATE_START_DATETIME_UTC}" > "${LAST_SUCCESSFUL_RUN_PATH}"
 	[ "${INI_DATETIME_UTC}" != "" ] && echo "${INI_DATETIME_UTC}" >> "${LAST_SUCCESSFUL_RUN_PATH}"
 fi
+sync
 
 if [ "$SD_INSTALLER_PATH" != "" ]
 then
 	echo "Linux system must be updated"
 	if [ ! -f "/media/fat/linux/unrar-nonfree" ]
 	then
-		UNRAR_DEB_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9%./_+-]*_armhf\.deb\"' | sed 's/\"//g')
+		UNRAR_DEB_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9%./_+-]*_armhf\.deb\"' | sed 's/\"//g')
 		MAX_VERSION=""
 		MAX_RELEASE_URL=""
 		for RELEASE_URL in $UNRAR_DEB_URLS; do
@@ -1094,12 +1104,12 @@ fi
 
 echo "Done!"
 if [[ "${REBOOT_NEEDED}" == "true" ]] ; then
-    if [[ "${AUTOREBOOT}" == "true" && "${REBOOT_PAUSE}" -ge 0 ]] ; then
-	echo "Rebooting in ${REBOOT_PAUSE} seconds"
-	sleep "${REBOOT_PAUSE}"
-	reboot now
-    else
-	echo "You should reboot"
+	if [[ "${AUTOREBOOT}" == "true" && "${REBOOT_PAUSE}" -ge 0 ]] ; then
+		echo "Rebooting in ${REBOOT_PAUSE} seconds"
+		sleep "${REBOOT_PAUSE}"
+		reboot now
+		else
+		echo "You should reboot"
     fi
 fi
 
