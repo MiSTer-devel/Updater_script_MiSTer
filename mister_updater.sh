@@ -19,6 +19,7 @@
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
 
+# Version 4.0.2 - 2020-02-09 - Improved script output; the updater performs a full resync when a newer version has been released; the updater informs the user that MAME_ARCADE_ROMS and MAME_ALT_ROMS default values are going to switch to "true" in the next days; corrected a bug in additional repositories files with a comma "," in the name; added GBA cheats; the updater checks the actual installed MiSTer Linux and not only the last downloaded SD-Installer before updating Linux; the updater backups the whole _Arcade dir before switching to the new MRA structure when MAME_ARCADE_ROMS="true"; speed optimisations.
 # Version 4.0.1 - 2020-01-18 - Improved script output.
 # Version 4.0 - 2020-01-13 - Added report/log of updated cores and additional files at the end of the script; added exit code 100 when there's an error downloading something; now PARALLEL_UPDATE="true" is the default value; added REPOSITORIES_NEGATIVE_FILTER parameter, like REPOSITORIES_FILTER but repository names and core categories must not match the filter, it is processed after REPOSITORIES_FILTER; now the updater only checks repositories which have been actually updated since the last successful update, edit your ini or delete /media/fat/Scripts/.mister_updater/*.last_successful_run files to reset this mechanism; changed MidiLink additional repository to the official MiSTer-devel one.
 # Version 3.6.3 - 2020-01-09 - Speed optimisations.
@@ -191,7 +192,7 @@ MISTER_DEVEL_REPOS_URL="https://api.github.com/orgs/mister-devel/repos"
 FILTERS_URL="https://github.com/MiSTer-devel/Filters_MiSTer"
 MRA_ALT_URL="https://github.com/MiSTer-devel/MRA-Alternatives_MiSTer"
 CHEATS_URL="https://gamehacking.org/mister/"
-CHEAT_MAPPINGS="fds:NES gb:GameBoy gbc:GameBoy gen:Genesis gg:SMS nes:NES pce:TGFX16 sms:SMS snes:SNES"
+CHEAT_MAPPINGS="fds:NES gb:GameBoy gbc:GameBoy gen:Genesis gg:SMS nes:NES pce:TGFX16 sms:SMS snes:SNES gba:GBA"
 UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
 #Uncomment this if you want the script to sync the system date and time with a NTP server
 #NTP_SERVER="0.pool.ntp.org"
@@ -203,6 +204,10 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 
 #========= CODE STARTS HERE =========
+
+UPDATER_VERSION="4.0.2"
+echo "MiSTer Updater version ${UPDATER_VERSION}"
+echo ""
 
 ORIGINAL_SCRIPT_PATH="$0"
 if [ "$ORIGINAL_SCRIPT_PATH" == "bash" ]
@@ -237,6 +242,26 @@ fi
 #			echo "$(basename $INI_PATH)"
 #			echo ""
 #fi
+
+if [ "${MAME_ARCADE_ROMS}" != "true" ] || [ "${MAME_ALT_ROMS}" != "true" ]
+then
+	echo "In the next days"
+	echo "MAME_ARCADE_ROMS"
+	echo "and"
+	echo "MAME_ALT_ROMS"
+	echo "default values will"
+	echo "be switched to \"true\"."
+	echo "If you're still using"
+	echo "the old, outdated and"
+	echo "deprecated rom style,"
+	echo "please add"
+	echo "MAME_ARCADE_ROMS=\"false\""
+	echo "and"
+	echo "MAME_ALT_ROMS=\"false\""
+	echo "to your"
+	echo "$(basename $INI_PATH)"
+	echo ""
+fi
 
 SSL_SECURITY_OPTION=""
 curl $CURL_RETRY -q https://github.com &>/dev/null
@@ -288,9 +313,19 @@ UPDATE_START_DATETIME_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 mkdir -p "${CORE_CATEGORY_PATHS[@]}"
 if [ "${MAME_ARCADE_ROMS}" == "true" ]
 then
+	if ls ${CORE_CATEGORY_PATHS["arcade-cores"]}/*.rbf > /dev/null 2>&1 && ! ls ${CORE_CATEGORY_PATHS["arcade-cores"]}/*.mra > /dev/null 2>&1
+	then
+		echo "Backupping ${CORE_CATEGORY_PATHS["arcade-cores"]}"
+		echo "into ${CORE_CATEGORY_PATHS["arcade-cores"]}_backup_$(date -u +%Y%m%d)"
+		echo "please wait..."
+		cp -r "${CORE_CATEGORY_PATHS["arcade-cores"]}" "${CORE_CATEGORY_PATHS["arcade-cores"]}_backup_$(date -u +%Y%m%d)"
+		echo "...done."
+		echo ""
+	fi
 	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/cores" "${CORE_CATEGORY_PATHS["arcade-cores"]}/mame" "${CORE_CATEGORY_PATHS["arcade-cores"]}/hbmame"
 	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/"*.mra "${CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
 	find "${CORE_CATEGORY_PATHS["arcade-cores"]}" -maxdepth 1 -type f -name '*.mra' -size +165000c -size -166000c -delete
+	rm "${CORE_CATEGORY_PATHS["arcade-cores"]}/Arkanoid (unl.lives%2C slower).mra" > /dev/null 2>&1
 elif [ "${MAME_ARCADE_ROMS}" == "false" ]
 then
 	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/cores/"*.rbf "${CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
@@ -359,8 +394,9 @@ if [ -f ${LAST_SUCCESSFUL_RUN_PATH} ]
 then
 	LAST_SUCCESSFUL_RUN_DATETIME_UTC=$(cat "${LAST_SUCCESSFUL_RUN_PATH}" | sed '1q;d')
 	LAST_SUCCESSFUL_RUN_INI_DATETIME_UTC=$(cat "${LAST_SUCCESSFUL_RUN_PATH}" | sed '2q;d')
+	LAST_SUCCESSFUL_RUN_UPDATER_VERSION=$(cat "${LAST_SUCCESSFUL_RUN_PATH}" | sed '3q;d')
 	
-	if [ "${MISTER_DEVEL_REPOS_URL}" != "" ] && [ "${INI_DATETIME_UTC}" == "${LAST_SUCCESSFUL_RUN_INI_DATETIME_UTC}" ]
+	if [ "${MISTER_DEVEL_REPOS_URL}" != "" ] && [ "${INI_DATETIME_UTC}" == "${LAST_SUCCESSFUL_RUN_INI_DATETIME_UTC}" ] && [ "${UPDATER_VERSION}" == "${LAST_SUCCESSFUL_RUN_UPDATER_VERSION}" ]
 	then
 		echo "Downloading MiSTer-devel updates"
 		echo ""
@@ -387,7 +423,27 @@ then
 		else
 			CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER="ZZZZZZZZZ"
 		fi
+		
+		echo "Performing an optimized update checking only repositories"
+		echo "updated after $(date -d ${LAST_SUCCESSFUL_RUN_DATETIME_UTC})"
+		echo "If you want a full updater resync please delete"
+		echo "${LAST_SUCCESSFUL_RUN_PATH}"
+		echo ""
+	else
+		echo "Performing a full updater resync because"
+		if [ "${UPDATER_VERSION}" != "${LAST_SUCCESSFUL_RUN_UPDATER_VERSION}" ]
+		then
+			echo "a new updater has been released"
+		fi
+		if [ "${INI_DATETIME_UTC}" != "${LAST_SUCCESSFUL_RUN_INI_DATETIME_UTC}" ]
+		then
+			echo "${INI_PATH} was modified"
+		fi
+		echo ""
 	fi
+else
+	echo "Performing a full updater resync"
+	echo ""
 fi
 if [ "$CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER" != "" ]
 then
@@ -569,11 +625,14 @@ function checkCoreURL {
 		fi
 	done
 	
+	[[ "${CORE_URL}" =~ SD-Installer ]] && [ -f /MiSTer.version ] && MAX_LOCAL_VERSION="20$(cat /MiSTer.version)"
+	
 	if [ "${BASE_FILE_NAME}" == "MiSTer" ] || [ "${BASE_FILE_NAME}" == "menu" ]
 	then
 		if [[ "${MAX_VERSION}" == "${MAX_LOCAL_VERSION}" ]]
 		then
-			DESTINATION_FILE=$(echo "${MAX_RELEASE_URL}" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
+			#DESTINATION_FILE=$(echo "${MAX_RELEASE_URL}" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
+			DESTINATION_FILE=$(echo "${MAX_RELEASE_URL}" | sed 's/.*\///g; s/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
 			ACTUAL_CRC=$(md5sum "/media/fat/${DESTINATION_FILE}" | grep -o "^[^ ]*")
 			SAVED_CRC=$(cat "${WORK_PATH}/${FILE_NAME}")
 			if [ "$ACTUAL_CRC" != "$SAVED_CRC" ]
@@ -600,7 +659,8 @@ function checkCoreURL {
 				fi
 				if [ $BASE_FILE_NAME == "MiSTer" ] || [ $BASE_FILE_NAME == "menu" ]
 				then
-					DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
+					#DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g' | sed 's/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
+					DESTINATION_FILE=$(echo "$MAX_RELEASE_URL" | sed 's/.*\///g; s/_[0-9]\{8\}[a-zA-Z]\{0,1\}//g')
 					echo "Moving $DESTINATION_FILE"
 					rm "/media/fat/$DESTINATION_FILE" > /dev/null 2>&1
 					mv "$CURRENT_DIR/$FILE_NAME" "/media/fat/$DESTINATION_FILE"
@@ -754,7 +814,8 @@ function checkAdditionalRepository {
 		else
 			CONTENT_TDS="${RELEASES_HTML}"
 		fi
-		ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
+		#ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
+		ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g; s/<\/td>/\n/g')
 		ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
 		for DATETIME_INDEX in "${!ADDITIONAL_FILE_DATETIMES[@]}"; do 
 			ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]=$(echo "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
@@ -763,7 +824,8 @@ function checkAdditionalRepository {
 				ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]="${ADDITIONAL_FILE_DATETIMES[$((DATETIME_INDEX-1))]}"
 			fi
 		done
-		CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
+		#CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
+		CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g; s/<\/td>/\n/g')
 		CONTENT_TD_INDEX=0
 		for CONTENT_TD in $CONTENT_TDS; do
 			#ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\(\"\|\'\)[a-zA-Z0-9%&#;!()./_-]*\.$ADDITIONAL_FILES_EXTENSIONS\(\"\|\'\)" | sed "s/href=//g" | sed "s/\(\"\|\'\)//g")
@@ -771,7 +833,8 @@ function checkAdditionalRepository {
 			if [ "$ADDITIONAL_FILE_URL" != "" ]
 			then
 				#ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g; s/&#39;/'\''/g')
-				ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g')
+				#ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g')
+				ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g; s/%20/ /g; s/%2C/,/g')
 				ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_FILE_DATETIMES[$CONTENT_TD_INDEX]}
 				if [ -f "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" ]
 				then
@@ -968,8 +1031,8 @@ fi
 
 EXIT_CODE=0
 LOG_PATH="${WORK_PATH}/$(basename ${ORIGINAL_SCRIPT_PATH%.*}.log)"
-echo "Update started at" > "${LOG_PATH}"
-echo "${UPDATE_START_DATETIME_LOCAL}" >> "${LOG_PATH}"
+echo "MiSTer Updater version ${UPDATER_VERSION}" > "${LOG_PATH}"
+echo "started at ${UPDATE_START_DATETIME_LOCAL}" >> "${LOG_PATH}"
 echo "" >> "${LOG_PATH}"
 echo "Successfully updated cores:" >> "${LOG_PATH}"
 if [ "$(cat "${UPDATED_CORES_FILE}")" != "" ]
@@ -1024,7 +1087,9 @@ echo ""
 if [ "${EXIT_CODE}" == "0" ]
 then
 	echo "${UPDATE_START_DATETIME_UTC}" > "${LAST_SUCCESSFUL_RUN_PATH}"
-	[ "${INI_DATETIME_UTC}" != "" ] && echo "${INI_DATETIME_UTC}" >> "${LAST_SUCCESSFUL_RUN_PATH}"
+	#[ "${INI_DATETIME_UTC}" != "" ] && echo "${INI_DATETIME_UTC}" >> "${LAST_SUCCESSFUL_RUN_PATH}"
+	echo "${INI_DATETIME_UTC}" >> "${LAST_SUCCESSFUL_RUN_PATH}"
+	echo "${UPDATER_VERSION}" >> "${LAST_SUCCESSFUL_RUN_PATH}"
 fi
 sync
 
