@@ -19,6 +19,8 @@
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
 
+
+# Version 4.0.3 - 2020-02-24 - Changed MAME_ARCADE_ROMS and MAME_ALT_ROMS default value to "true"; added _Other core directory and removed Arduboy from SD root; renamed CORE_CATEGORY_PATHS["cores"] to CORE_CATEGORY_PATHS["computer-cores"] for better readibility, "cores" still works for both CORE_CATEGORY_PATHS and filters; code clean up by frederic-mahe (thank you very much).
 # Version 4.0.2 - 2020-02-09 - Improved script output; the updater performs a full resync when a newer version has been released; the updater informs the user that MAME_ARCADE_ROMS and MAME_ALT_ROMS default values are going to switch to "true" in the next days; corrected a bug in additional repositories files with a comma "," in the name; added GBA cheats; the updater checks the actual installed MiSTer Linux and not only the last downloaded SD-Installer before updating Linux; the updater backups the whole _Arcade dir before switching to the new MRA structure when MAME_ARCADE_ROMS="true"; speed optimisations.
 # Version 4.0.1 - 2020-01-18 - Improved script output.
 # Version 4.0 - 2020-01-13 - Added report/log of updated cores and additional files at the end of the script; added exit code 100 when there's an error downloading something; now PARALLEL_UPDATE="true" is the default value; added REPOSITORIES_NEGATIVE_FILTER parameter, like REPOSITORIES_FILTER but repository names and core categories must not match the filter, it is processed after REPOSITORIES_FILTER; now the updater only checks repositories which have been actually updated since the last successful update, edit your ini or delete /media/fat/Scripts/.mister_updater/*.last_successful_run files to reset this mechanism; changed MidiLink additional repository to the official MiSTer-devel one.
@@ -86,9 +88,10 @@ BASE_PATH="/media/fat"
 
 #Directories where all core categories will be downloaded.
 declare -A CORE_CATEGORY_PATHS
-CORE_CATEGORY_PATHS["cores"]="$BASE_PATH/_Computer"
+CORE_CATEGORY_PATHS["computer-cores"]="$BASE_PATH/_Computer"
 CORE_CATEGORY_PATHS["console-cores"]="$BASE_PATH/_Console"
 CORE_CATEGORY_PATHS["arcade-cores"]="$BASE_PATH/_Arcade"
+CORE_CATEGORY_PATHS["other-cores"]="$BASE_PATH/_Other"
 CORE_CATEGORY_PATHS["service-cores"]="$BASE_PATH/_Utility"
 
 #Optional pipe "|" separated list of directories containing alternative arcade cores to be updated,
@@ -147,13 +150,13 @@ CREATE_CORES_DIRECTORIES="true"
 #"false" for restoring the old directory/file structure;
 #"" for doing nothing.
 #when using MAME_ARCADE_ROMS="true", please do not add "/cores" to CORE_CATEGORY_PATHS["arcade-cores"].
-MAME_ARCADE_ROMS=""
+MAME_ARCADE_ROMS="true"
 
 #Specifies if the updater has to download/update alternative MRA files (alternative MAME Arcade ROMs) for Arcade cores;
 #"true" for using the new MRA directory/file structure;
 #"false" for restoring the old directory/file structure;
 #"" for doing nothing.
-MAME_ALT_ROMS=""
+MAME_ALT_ROMS="true"
 
 #Specifies the Games/Programs subdirectory where core specific directories will be placed.
 #GAMES_SUBDIR="" for letting the script choose between /media/fat and /media/fat/games when it exists,
@@ -205,7 +208,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.2"
+UPDATER_VERSION="4.0.3"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
@@ -243,25 +246,25 @@ fi
 #			echo ""
 #fi
 
-if [ "${MAME_ARCADE_ROMS}" != "true" ] || [ "${MAME_ALT_ROMS}" != "true" ]
-then
-	echo "In the next days"
-	echo "MAME_ARCADE_ROMS"
-	echo "and"
-	echo "MAME_ALT_ROMS"
-	echo "default values will"
-	echo "be switched to \"true\"."
-	echo "If you're still using"
-	echo "the old, outdated and"
-	echo "deprecated rom style,"
-	echo "please add"
-	echo "MAME_ARCADE_ROMS=\"false\""
-	echo "and"
-	echo "MAME_ALT_ROMS=\"false\""
-	echo "to your"
-	echo "$(basename $INI_PATH)"
-	echo ""
-fi
+#if [ "${MAME_ARCADE_ROMS}" != "true" ] || [ "${MAME_ALT_ROMS}" != "true" ]
+#then
+#	echo "In the next days"
+#	echo "MAME_ARCADE_ROMS"
+#	echo "and"
+#	echo "MAME_ALT_ROMS"
+#	echo "default values will"
+#	echo "be switched to \"true\"."
+#	echo "If you're still using"
+#	echo "the old, outdated and"
+#	echo "deprecated rom style,"
+#	echo "please add"
+#	echo "MAME_ARCADE_ROMS=\"false\""
+#	echo "and"
+#	echo "MAME_ALT_ROMS=\"false\""
+#	echo "to your"
+#	echo "$(basename $INI_PATH)"
+#	echo ""
+#fi
 
 SSL_SECURITY_OPTION=""
 curl $CURL_RETRY -q https://github.com &>/dev/null
@@ -340,6 +343,9 @@ then
 	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup"
 	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/_alternatives/" "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/_alternatives/" > /dev/null 2>&1
 fi
+
+rm "${BASE_PATH}/"Arduboy_*.rbf > /dev/null 2>&1
+
 declare -A NEW_CORE_CATEGORY_PATHS
 if [ "$DOWNLOAD_NEW_CORES" != "true" ] && [ "$DOWNLOAD_NEW_CORES" != "false" ] && [ "$DOWNLOAD_NEW_CORES" != "" ]
 then
@@ -499,7 +505,7 @@ function checkCoreURL {
 		#if echo "$RELEASE_URL" | grep -q "Atari800"
 		if [[ "${RELEASE_URL}" =~ Atari800 ]]
 		then
-			if [ "$CORE_CATEGORY" == "cores" ]
+			if [ "$CORE_CATEGORY" == "cores" ] || [ "$CORE_CATEGORY" == "computer-cores" ]
 			then
 				RELEASE_URL=$(echo "$RELEASE_URL"  | grep '800_[0-9]\{8\}[a-zA-Z]\?\.rbf$')
 			else
@@ -648,7 +654,7 @@ function checkCoreURL {
 		#if [ "$DOWNLOAD_NEW_CORES" != "false" ] || [ "$MAX_LOCAL_VERSION" != "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || { echo "$CORE_URL" | grep -qE "SD-Installer|Filters_MiSTer"; }
 		if [ "$DOWNLOAD_NEW_CORES" != "false" ] || [ "$MAX_LOCAL_VERSION" != "" ] || [ "$BASE_FILE_NAME" == "MiSTer" ] || [ "$BASE_FILE_NAME" == "menu" ] || [[ "${CORE_URL}" =~ SD-Installer|Filters_MiSTer|MRA-Alternatives_MiSTer ]]
 		then
-			echo "Downloading $FILE_NAME"
+			echo "Downloading $FILE_NAME to $CURRENT_DIR/$FILE_NAME"
 			[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$MAX_RELEASE_URL?raw=true"
 			if curl $CURL_RETRY $SSL_SECURITY_OPTION $([ "${PARALLEL_UPDATE}" == "true" ] && echo "-sS") -L "https://github.com$MAX_RELEASE_URL?raw=true" -o "$CURRENT_DIR/$FILE_NAME"
 			then
@@ -879,6 +885,15 @@ function checkAdditionalRepository {
 	
 }
 
+if [ "${CORE_CATEGORY_PATHS["cores"]}" != "" ]
+then
+	CORE_CATEGORY_PATHS["computer-cores"]="${CORE_CATEGORY_PATHS["cores"]}"
+fi
+REPOSITORIES_FILTER_REGEX="${REPOSITORIES_FILTER_REGEX/]cores)/]computer-cores)}"
+CORE_CATEGORIES_FILTER_REGEX="${CORE_CATEGORIES_FILTER_REGEX/(cores)/(computer-cores)}"
+REPOSITORIES_NEGATIVE_FILTER_REGEX="${REPOSITORIES_NEGATIVE_FILTER_REGEX/]cores)/]computer-cores)}"
+CORE_CATEGORIES_NEGATIVE_FILTER_REGEX="${CORE_CATEGORIES_NEGATIVE_FILTER_REGEX/(cores)/(computer-cores)}"
+
 for CORE_URL in $CORE_URLS; do
 	if [[ $CORE_URL == https://* ]]
 	then
@@ -901,18 +916,25 @@ for CORE_URL in $CORE_URLS; do
 		fi
 	else
 		CORE_CATEGORY=$(echo "$CORE_URL" | sed 's/user-content-//g')
-		if [ "$CORE_CATEGORY" == "" ]
-		then
-			CORE_CATEGORY="-"
-		fi
-		if [ "$CORE_CATEGORY" == "computer-cores" ] || [[ "$CORE_CATEGORY" =~ [a-z]+-comput[a-z]+ ]]
-		then
-			CORE_CATEGORY="cores"
-		fi
-		if [[ "$CORE_CATEGORY" =~ console.* ]]
-		then
-			CORE_CATEGORY="console-cores"
-		fi
+		#if [ "$CORE_CATEGORY" == "" ]
+		#then
+		#	CORE_CATEGORY="-"
+		#fi
+		#if [ "$CORE_CATEGORY" == "computer-cores" ] || [[ "$CORE_CATEGORY" =~ [a-z]+-comput[a-z]+ ]]
+		#then
+		#	CORE_CATEGORY="cores"
+		#fi
+		#if [[ "$CORE_CATEGORY" =~ console.* ]]
+		#then
+		#	CORE_CATEGORY="console-cores"
+		#fi
+		case "${CORE_URL}" in
+			*comput*) CORE_CATEGORY="computer-cores" ;;
+			*console*) CORE_CATEGORY="console-cores" ;;
+			*other-systems*) CORE_CATEGORY="other-cores" ;;
+			"") CORE_CATEGORY="-" ;;
+			*) ;;
+		esac
 	fi
 done
 wait
