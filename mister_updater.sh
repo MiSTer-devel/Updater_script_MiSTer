@@ -210,7 +210,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.4"
+UPDATER_VERSION="4.0.5"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
