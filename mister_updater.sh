@@ -20,6 +20,7 @@
 
 
 
+# Version 4.0.5 - 2020-04-23 - PARALLEL_UPDATE="false" is default again, after users reporting true randomly triggering GitHub anti abuse system.
 # Version 4.0.4 - 2020-02-27 - The script prompts for using PARALLEL_UPDATE="false" each time a download fails; corrected an incompatibility with AY-3-8500 repository.
 # Version 4.0.3 - 2020-02-24 - Changed MAME_ARCADE_ROMS and MAME_ALT_ROMS default value to "true"; added _Other core directory and removed Arduboy from SD root; renamed CORE_CATEGORY_PATHS["cores"] to CORE_CATEGORY_PATHS["computer-cores"] for better readibility, "cores" still works for both CORE_CATEGORY_PATHS and filters; code clean up by frederic-mahe (thank you very much).
 # Version 4.0.2 - 2020-02-09 - Improved script output; the updater performs a full resync when a newer version has been released; the updater informs the user that MAME_ARCADE_ROMS and MAME_ALT_ROMS default values are going to switch to "true" in the next days; corrected a bug in additional repositories files with a comma "," in the name; added GBA cheats; the updater checks the actual installed MiSTer Linux and not only the last downloaded SD-Installer before updating Linux; the updater backups the whole _Arcade dir before switching to the new MRA structure when MAME_ARCADE_ROMS="true"; speed optimisations.
@@ -135,7 +136,7 @@ UPDATE_CHEATS="once"
 UPDATE_LINUX="true"
 
 #EXPERIMENTAL: specifies if the update process must be done with parallel processing; use it at your own risk!
-PARALLEL_UPDATE="true"
+PARALLEL_UPDATE="false"
 
 #Specifies an optional URL with a text file containing a curated list of "good" cores.
 #If a core is specified there, it will be preferred over the latest "bleeding edge" core in its repository.
