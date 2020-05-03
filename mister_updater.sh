@@ -20,6 +20,7 @@
 
 
 
+# Version 4.0.6 - 2020-05-03 - Improved GAMES_SUBDIR automatic detection, preferring $BASE_PATH/games; mame and hbmame dirs are created in games dir when used; corrected a bug preventing the correct use of BASE_PATH in the ini file; updated ADDITIONAL_REPOSITORIES default value; added TurboGrafx CD cheats.
 # Version 4.0.5 - 2020-04-23 - PARALLEL_UPDATE="false" is default again, after users reporting true randomly triggering GitHub anti abuse system.
 # Version 4.0.4 - 2020-02-27 - The script prompts for using PARALLEL_UPDATE="false" each time a download fails; corrected an incompatibility with AY-3-8500 repository.
 # Version 4.0.3 - 2020-02-24 - Changed MAME_ARCADE_ROMS and MAME_ALT_ROMS default value to "true"; added _Other core directory and removed Arduboy from SD root; renamed CORE_CATEGORY_PATHS["cores"] to CORE_CATEGORY_PATHS["computer-cores"] for better readibility, "cores" still works for both CORE_CATEGORY_PATHS and filters; code clean up by frederic-mahe (thank you very much).
@@ -164,10 +165,6 @@ MAME_ALT_ROMS="true"
 #GAMES_SUBDIR="" for letting the script choose between /media/fat and /media/fat/games when it exists,
 #otherwise the subdir you prefer (i.e. GAMES_SUBDIR="/Programs").
 GAMES_SUBDIR=""
-if [ "${GAMES_SUBDIR}" == "" ] && [ "$(find ${BASE_PATH}/games -type f -print -quit 2> /dev/null)" != "" ]
-then
-	GAMES_SUBDIR="/games"
-fi
 
 #========= ADVANCED OPTIONS =========
 #ALLOW_INSECURE_SSL="true" will check if SSL certificate verification (see https://curl.haxx.se/docs/sslcerts.html )
@@ -185,19 +182,19 @@ WORK_PATH="/media/fat/$SCRIPTS_PATH/.mister_updater"
 #Comment (or uncomment) next lines if you don't want (or want) to update/download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
 ADDITIONAL_REPOSITORIES=(
 #	"https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters"
-	"https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|${BASE_PATH}${GAMES_SUBDIR}/GameBoy"
+	"https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|@GAMES_SUBDIR@/GameBoy"
 	"https://github.com/MiSTer-devel/Scripts_MiSTer|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 #	"https://github.com/bbond007/MiSTer_MidiLink/tree/master/INSTALL|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 	"https://github.com/MiSTer-devel/MidiLink_MiSTer/tree/master/INSTALL|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 #	"https://github.com/MiSTer-devel/Fonts_MiSTer|pf|$BASE_PATH/font"
-	"https://github.com/MiSTer-devel/NeoGeo_MiSTer/tree/master/releases|xml|${BASE_PATH}${GAMES_SUBDIR}/NeoGeo"
+	"https://github.com/MiSTer-devel/NeoGeo_MiSTer/tree/master/releases|xml|@GAMES_SUBDIR@/NeoGeo"
 	"https://github.com/MiSTer-devel/Scripts_MiSTer/tree/master/other_authors|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 )
 MISTER_DEVEL_REPOS_URL="https://api.github.com/orgs/mister-devel/repos"
 FILTERS_URL="https://github.com/MiSTer-devel/Filters_MiSTer"
 MRA_ALT_URL="https://github.com/MiSTer-devel/MRA-Alternatives_MiSTer"
 CHEATS_URL="https://gamehacking.org/mister/"
-CHEAT_MAPPINGS="fds:NES gb:GameBoy gbc:GameBoy gen:Genesis gg:SMS nes:NES pce:TGFX16 sms:SMS snes:SNES gba:GBA"
+CHEAT_MAPPINGS="fds:NES gb:GameBoy gbc:GameBoy gen:Genesis gg:SMS nes:NES pce:TGFX16 sms:SMS snes:SNES gba:GBA pcd:TGFX16"
 UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
 #Uncomment this if you want the script to sync the system date and time with a NTP server
 #NTP_SERVER="0.pool.ntp.org"
@@ -210,7 +207,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.5"
+UPDATER_VERSION="4.0.6"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
@@ -315,6 +312,25 @@ fi
 UPDATE_START_DATETIME_LOCAL=$(date)
 UPDATE_START_DATETIME_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+for idx in "${!CORE_CATEGORY_PATHS[@]}"; do
+	CORE_CATEGORY_PATHS[$idx]="${CORE_CATEGORY_PATHS[$idx]/\/media\/fat/${BASE_PATH}}"
+	#echo "CORE_CATEGORY_PATHS[$idx]=${CORE_CATEGORY_PATHS[$idx]}"
+done
+if [ "${GAMES_SUBDIR}" == "" ]
+then
+	if [ "$(find ${BASE_PATH}/games -type f -print -quit 2> /dev/null)" == "" ] && { [ "$(find ${BASE_PATH}/GameBoy -type f -print -quit 2> /dev/null)" != "" ] || [ "$(find ${BASE_PATH}/NeoGeo -type f -print -quit 2> /dev/null)" != "" ]; }
+	then
+		GAMES_SUBDIR="${BASE_PATH}"
+	else
+		GAMES_SUBDIR="${BASE_PATH}/games"
+	fi
+fi
+for idx in "${!ADDITIONAL_REPOSITORIES[@]}"; do
+	ADDITIONAL_REPOSITORIES[$idx]="${ADDITIONAL_REPOSITORIES[$idx]/\/media\/fat/${BASE_PATH}}"
+	ADDITIONAL_REPOSITORIES[$idx]="${ADDITIONAL_REPOSITORIES[$idx]/@GAMES_SUBDIR@/${GAMES_SUBDIR}}"
+	#echo "ADDITIONAL_REPOSITORIES[$idx]=${ADDITIONAL_REPOSITORIES[$idx]}"
+done
+
 mkdir -p "${CORE_CATEGORY_PATHS[@]}"
 if [ "${MAME_ARCADE_ROMS}" == "true" ]
 then
@@ -327,7 +343,13 @@ then
 		echo "...done."
 		echo ""
 	fi
-	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/cores" "${CORE_CATEGORY_PATHS["arcade-cores"]}/mame" "${CORE_CATEGORY_PATHS["arcade-cores"]}/hbmame"
+	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/cores"
+	if [ "${GAMES_SUBDIR}" == "${BASE_PATH}" ]
+	then
+		mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/mame" "${CORE_CATEGORY_PATHS["arcade-cores"]}/hbmame"
+	else
+		mkdir -p "${GAMES_SUBDIR}/mame" "${GAMES_SUBDIR}/hbmame"
+	fi
 	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/"*.mra "${CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
 	find "${CORE_CATEGORY_PATHS["arcade-cores"]}" -maxdepth 1 -type f -name '*.mra' -size +165000c -size -166000c -delete
 	rm "${CORE_CATEGORY_PATHS["arcade-cores"]}/Arkanoid (unl.lives%2C slower).mra" > /dev/null 2>&1
@@ -745,8 +767,8 @@ function checkCoreURL {
 						esac
 						if [ "$CORE_INTERNAL_NAME" != "" ]
 						then
-							echo "Creating ${BASE_PATH}${GAMES_SUBDIR}/${CORE_INTERNAL_NAME} directory"
-							mkdir -p "${BASE_PATH}${GAMES_SUBDIR}/${CORE_INTERNAL_NAME}"
+							echo "Creating ${GAMES_SUBDIR}/${CORE_INTERNAL_NAME} directory"
+							mkdir -p "${GAMES_SUBDIR}/${CORE_INTERNAL_NAME}"
 						fi
 					fi
 				fi
