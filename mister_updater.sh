@@ -20,6 +20,7 @@
 
 
 
+# Version 4.0.7 - 2020-05-04 - mame and hbmame directories are created only when they don't exist both in games and _Arcade directories; mame and hbmame directories are deleted from games dir, when they're empty and _Arcade/mame and _Arcade/hbmame aren't empty.
 # Version 4.0.6 - 2020-05-03 - Improved GAMES_SUBDIR automatic detection, preferring $BASE_PATH/games; mame and hbmame dirs are created in games dir when used; corrected a bug preventing the correct use of BASE_PATH in the ini file; updated ADDITIONAL_REPOSITORIES default value; added TurboGrafx CD cheats.
 # Version 4.0.5 - 2020-04-23 - PARALLEL_UPDATE="false" is default again, after users reporting true randomly triggering GitHub anti abuse system.
 # Version 4.0.4 - 2020-02-27 - The script prompts for using PARALLEL_UPDATE="false" each time a download fails; corrected an incompatibility with AY-3-8500 repository.
@@ -207,7 +208,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.6"
+UPDATER_VERSION="4.0.7"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
@@ -344,11 +345,35 @@ then
 		echo ""
 	fi
 	mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/cores"
-	if [ "${GAMES_SUBDIR}" == "${BASE_PATH}" ]
+	if [ ! -d "${CORE_CATEGORY_PATHS["arcade-cores"]}/mame" ] && [ ! -d "${GAMES_SUBDIR}/mame" ]
 	then
-		mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/mame" "${CORE_CATEGORY_PATHS["arcade-cores"]}/hbmame"
-	else
-		mkdir -p "${GAMES_SUBDIR}/mame" "${GAMES_SUBDIR}/hbmame"
+		if [ "${GAMES_SUBDIR}" == "${BASE_PATH}" ]
+		then
+			mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/mame"
+		else
+			mkdir -p "${GAMES_SUBDIR}/mame"
+		fi
+	fi
+	if [ -d "${BASE_PATH}/games/mame" ] && [ "$(find ${BASE_PATH}/games/mame -type f -print -quit 2> /dev/null)" == "" ] && [ "$(find ${CORE_CATEGORY_PATHS["arcade-cores"]}/mame -type f -print -quit 2> /dev/null)" != "" ]
+	then
+		echo "Deleting empty ${BASE_PATH}/games/mame since ${CORE_CATEGORY_PATHS["arcade-cores"]}/mame is not empty"
+		echo ""
+		rm -R "${BASE_PATH}/games/mame" > /dev/null 2>&1
+	fi
+	if [ ! -d "${CORE_CATEGORY_PATHS["arcade-cores"]}/hbmame" ] && [ ! -d "${GAMES_SUBDIR}/hbmame" ]
+	then
+		if [ "${GAMES_SUBDIR}" == "${BASE_PATH}" ]
+		then
+			mkdir -p "${CORE_CATEGORY_PATHS["arcade-cores"]}/hbmame"
+		else
+			mkdir -p "${GAMES_SUBDIR}/hbmame"
+		fi
+	fi
+	if [ -d "${BASE_PATH}/games/hbmame" ] && [ "$(find ${BASE_PATH}/games/hbmame -type f -print -quit 2> /dev/null)" == "" ] && [ "$(find ${CORE_CATEGORY_PATHS["arcade-cores"]}/hbmame -type f -print -quit 2> /dev/null)" != "" ]
+	then
+		echo "Deleting empty ${BASE_PATH}/games/hbmame since ${CORE_CATEGORY_PATHS["arcade-cores"]}/hbmame is not empty"
+		echo ""
+		rm -R "${BASE_PATH}/games/hbmame" > /dev/null 2>&1
 	fi
 	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/"*.mra "${CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
 	find "${CORE_CATEGORY_PATHS["arcade-cores"]}" -maxdepth 1 -type f -name '*.mra' -size +165000c -size -166000c -delete
