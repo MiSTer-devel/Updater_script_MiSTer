@@ -20,6 +20,7 @@
 
 
 
+# Version 4.0.8 - 2020-06-24 - Updated checkAdditionalRepository in order to reflect a change in GitHub HTML code.
 # Version 4.0.7 - 2020-05-04 - mame and hbmame directories are created only when they don't exist both in games and _Arcade directories; mame and hbmame directories are deleted from games dir, when they're empty and _Arcade/mame and _Arcade/hbmame aren't empty.
 # Version 4.0.6 - 2020-05-03 - Improved GAMES_SUBDIR automatic detection, preferring $BASE_PATH/games; mame and hbmame dirs are created in games dir when used; corrected a bug preventing the correct use of BASE_PATH in the ini file; updated ADDITIONAL_REPOSITORIES default value; added TurboGrafx CD cheats.
 # Version 4.0.5 - 2020-04-23 - PARALLEL_UPDATE="false" is default again, after users reporting true randomly triggering GitHub anti abuse system.
@@ -208,7 +209,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.7"
+UPDATER_VERSION="4.0.8"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
@@ -870,38 +871,53 @@ function checkAdditionalRepository {
 		fi
 		if [ "${RELEASES_HTML}" == "" ]
 		then
-			CONTENT_TDS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "$ADDITIONAL_FILES_URL")
+			CONTENT_HTML=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "$ADDITIONAL_FILES_URL")
 		else
-			CONTENT_TDS="${RELEASES_HTML}"
+			CONTENT_HTML="${RELEASES_HTML}"
 		fi
 		#ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
-		ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g; s/<\/td>/\n/g')
+		#ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g; s/<\/td>/\n/g')
+		#ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | grep -oE 'datetime="[^"]*"' | sed 's/datetime="//; s/"/ /' | tr -d '\n')
+		ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_HTML" | grep -oE 'datetime="[^"]*' | sed 's/datetime="//')
 		ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
-		for DATETIME_INDEX in "${!ADDITIONAL_FILE_DATETIMES[@]}"; do 
-			ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]=$(echo "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
-			if [ "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" == "" ]
-			then
-				ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]="${ADDITIONAL_FILE_DATETIMES[$((DATETIME_INDEX-1))]}"
-			fi
-		done
+		#for DATETIME_INDEX in "${!ADDITIONAL_FILE_DATETIMES[@]}"; do 
+		#	ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]=$(echo "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
+		#	if [ "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" == "" ]
+		#	then
+		#		ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]="${ADDITIONAL_FILE_DATETIMES[$((DATETIME_INDEX-1))]}"
+		#	fi
+		#done
 		#CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
-		CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g; s/<\/td>/\n/g')
-		CONTENT_TD_INDEX=0
-		for CONTENT_TD in $CONTENT_TDS; do
+		#CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g; s/<\/td>/\n/g')
+		ADDITIONAL_FILE_URLS=$(echo "$CONTENT_HTML" | grep -oE 'js-navigation-open link-gray-dark[^>]*' | sed 's/.*href="//; s/"//')
+		#ADDITIONAL_FILE_URLS=$(echo "$CONTENT_TDS" | grep -oE 'js-navigation-open link-gray-dark[^>]*')
+		CONTENT_INDEX=0
+		#for CONTENT_TD in $CONTENT_TDS; do
+		for ADDITIONAL_FILE_URL in $ADDITIONAL_FILE_URLS; do
 			#ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\(\"\|\'\)[a-zA-Z0-9%&#;!()./_-]*\.$ADDITIONAL_FILES_EXTENSIONS\(\"\|\'\)" | sed "s/href=//g" | sed "s/\(\"\|\'\)//g")
-			ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\(\"\|\'\)[a-zA-Z0-9%&#;!()./_-]*\.$ADDITIONAL_FILES_EXTENSIONS\(\"\|\'\)" | sed "s/href=//g; s/\(\"\|\'\)//g; s/&#39;/'/g")
+			#ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\(\"\|\'\)[a-zA-Z0-9%&#;!()./_-]*\.$ADDITIONAL_FILES_EXTENSIONS\(\"\|\'\)" | sed "s/href=//g; s/\(\"\|\'\)//g; s/&#39;/'/g")
+			#ADDITIONAL_FILE_URL=$(echo "${ADDITIONAL_FILE_URL}" | grep -o "href=\(\"\|\'\)[a-zA-Z0-9%&#;!()./_-]*\.$ADDITIONAL_FILES_EXTENSIONS\(\"\|\'\)" | sed "s/href=//g; s/\(\"\|\'\)//g; s/&#39;/'/g")
+			ADDITIONAL_FILE_URL=$(echo "${ADDITIONAL_FILE_URL}" | grep "\.$ADDITIONAL_FILES_EXTENSIONS$" | sed "s/&#39;/'/g")
 			if [ "$ADDITIONAL_FILE_URL" != "" ]
 			then
 				#ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g; s/&#39;/'\''/g')
 				#ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g')
 				ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g; s/%20/ /g; s/%2C/,/g')
-				ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_FILE_DATETIMES[$CONTENT_TD_INDEX]}
+				ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_FILE_DATETIMES[$CONTENT_INDEX]}
 				if [ -f "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" ]
 				then
 					ADDITIONAL_LOCAL_FILE_DATETIME=$(date -d "$(stat -c %y "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" 2>/dev/null)" -u +"%Y-%m-%dT%H:%M:%SZ")
 				else
 					ADDITIONAL_LOCAL_FILE_DATETIME=""
 				fi
+				
+				#echo "---------"
+				#echo "CONTENT_INDEX=${CONTENT_INDEX}"
+				#echo "ADDITIONAL_FILE_URL=${ADDITIONAL_FILE_URL}"
+				#echo "ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_ONLINE_FILE_DATETIME}"
+				#echo "ADDITIONAL_FILE_NAME=${ADDITIONAL_FILE_NAME}"
+				#echo "ADDITIONAL_LOCAL_FILE_DATETIME=${ADDITIONAL_LOCAL_FILE_DATETIME}"
+				
 				if [ "$ADDITIONAL_LOCAL_FILE_DATETIME" == "" ] || [[ "$ADDITIONAL_ONLINE_FILE_DATETIME" > "$ADDITIONAL_LOCAL_FILE_DATETIME" ]]
 				then
 					echo "Downloading $ADDITIONAL_FILE_NAME"
@@ -936,7 +952,7 @@ function checkAdditionalRepository {
 					echo ""
 				fi
 			fi
-			CONTENT_TD_INDEX=$((CONTENT_TD_INDEX+1))
+			CONTENT_INDEX=$((CONTENT_INDEX+1))
 		done
 		echo ""
 	fi
