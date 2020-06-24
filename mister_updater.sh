@@ -874,8 +874,8 @@ function checkAdditionalRepository {
 		else
 			CONTENT_TDS="${RELEASES_HTML}"
 		fi
-		#ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
-		ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g; s/<\/td>/\n/g')
+		#ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/class="age">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g; s/<\/td>/\n/g')
+		ADDITIONAL_FILE_DATETIMES=$(echo "$CONTENT_TDS" | awk '/time-ago datetime=/,/<\/time-ago>/' | awk '{print $2}' | sed 's/datetime="//g ; s/"//g') 
 		ADDITIONAL_FILE_DATETIMES=( $ADDITIONAL_FILE_DATETIMES )
 		for DATETIME_INDEX in "${!ADDITIONAL_FILE_DATETIMES[@]}"; do 
 			ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]=$(echo "${ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]}" | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z" )
@@ -884,8 +884,8 @@ function checkAdditionalRepository {
 				ADDITIONAL_FILE_DATETIMES[$DATETIME_INDEX]="${ADDITIONAL_FILE_DATETIMES[$((DATETIME_INDEX-1))]}"
 			fi
 		done
-		#CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
-		CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g; s/<\/td>/\n/g')
+		#CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g; s/<\/td>/\n/g')
+		CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/role="rowheader"/,/<\/div>/' | awk '/<span/,/<\/span>/')
 		CONTENT_TD_INDEX=0
 		for CONTENT_TD in $CONTENT_TDS; do
 			#ADDITIONAL_FILE_URL=$(echo "$CONTENT_TD" | grep -o "href=\(\"\|\'\)[a-zA-Z0-9%&#;!()./_-]*\.$ADDITIONAL_FILES_EXTENSIONS\(\"\|\'\)" | sed "s/href=//g" | sed "s/\(\"\|\'\)//g")
