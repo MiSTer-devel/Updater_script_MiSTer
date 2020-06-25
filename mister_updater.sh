@@ -176,7 +176,7 @@ GAMES_SUBDIR=""
 #ALLOW_INSECURE_SSL="false" will never use --insecure option and if CA certificates aren't installed
 #any download will fail.
 ALLOW_INSECURE_SSL="true"
-CURL_RETRY="--connect-timeout 15 --max-time 120 --retry 3 --retry-delay 5"
+CURL_RETRY="--connect-timeout 15 --max-time 180 --retry 3 --retry-delay 5"
 MISTER_URL="https://github.com/MiSTer-devel/Main_MiSTer"
 SCRIPTS_PATH="Scripts"
 OLD_SCRIPTS_PATH="#Scripts"
