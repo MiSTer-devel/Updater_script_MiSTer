@@ -20,6 +20,7 @@
 
 
 
+# Version 4.0.9 - 2020-06-25 - Download timeout increased from 120 seconds to 180.
 # Version 4.0.8 - 2020-06-24 - Updated checkAdditionalRepository in order to reflect a change in GitHub HTML code.
 # Version 4.0.7 - 2020-05-04 - mame and hbmame directories are created only when they don't exist both in games and _Arcade directories; mame and hbmame directories are deleted from games dir, when they're empty and _Arcade/mame and _Arcade/hbmame aren't empty.
 # Version 4.0.6 - 2020-05-03 - Improved GAMES_SUBDIR automatic detection, preferring $BASE_PATH/games; mame and hbmame dirs are created in games dir when used; corrected a bug preventing the correct use of BASE_PATH in the ini file; updated ADDITIONAL_REPOSITORIES default value; added TurboGrafx CD cheats.
@@ -209,7 +210,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.8"
+UPDATER_VERSION="4.0.9"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
