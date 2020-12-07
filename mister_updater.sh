@@ -20,6 +20,7 @@
 
 
 
+# Version 4.0.10 - 2020-12-07 - Optimised repositories main branch detection through a single API call.
 # Version 4.0.9 - 2020-06-25 - Download timeout increased from 120 seconds to 180.
 # Version 4.0.8 - 2020-06-24 - Updated checkAdditionalRepository in order to reflect a change in GitHub HTML code.
 # Version 4.0.7 - 2020-05-04 - mame and hbmame directories are created only when they don't exist both in games and _Arcade directories; mame and hbmame directories are deleted from games dir, when they're empty and _Arcade/mame and _Arcade/hbmame aren't empty.
@@ -210,7 +211,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.9"
+UPDATER_VERSION="4.0.10"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
@@ -456,32 +457,6 @@ then
 	
 	if [ "${MISTER_DEVEL_REPOS_URL}" != "" ] && [ "${INI_DATETIME_UTC}" == "${LAST_SUCCESSFUL_RUN_INI_DATETIME_UTC}" ] && [ "${UPDATER_VERSION}" == "${LAST_SUCCESSFUL_RUN_UPDATER_VERSION}" ]
 	then
-		echo "Downloading MiSTer-devel updates"
-		echo ""
-		API_PAGE=1
-		API_RESPONSE=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sSLf "${MISTER_DEVEL_REPOS_URL}?per_page=100&page=${API_PAGE}" | grep -oE '("svn_url": "[^"]*)|("updated_at": "[^"]*)' | sed 's/"svn_url": "//; s/"updated_at": "//')
-		until [ "${API_RESPONSE}" == "" ]; do
-			for API_RESPONSE_LINE in $API_RESPONSE; do
-				if [[ "${API_RESPONSE_LINE}" =~ https: ]]
-				then
-					if [[ "${LAST_SUCCESSFUL_RUN_DATETIME_UTC}" < "${REPO_UPDATE_DATETIME_UTC}" ]]
-					then
-						CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER="${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER} ${API_RESPONSE_LINE##*/}"
-					fi
-				else
-					REPO_UPDATE_DATETIME_UTC="${API_RESPONSE_LINE}"
-				fi
-			done
-			API_PAGE=$((API_PAGE+1))
-			API_RESPONSE=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sSLf "${MISTER_DEVEL_REPOS_URL}?per_page=100&page=${API_PAGE}" | grep -oE '("svn_url": "[^"]*)|("updated_at": "[^"]*)' | sed 's/"svn_url": "//; s/"updated_at": "//')
-		done
-		if [ "${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER}" != "" ]
-		then
-			CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER=$(echo "${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER}" | cut -c2- )
-		else
-			CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER="ZZZZZZZZZ"
-		fi
-		
 		echo "Performing an optimized update checking only repositories"
 		echo "updated after $(date -d ${LAST_SUCCESSFUL_RUN_DATETIME_UTC})"
 		echo "If you want a full updater resync please delete"
@@ -503,6 +478,48 @@ else
 	echo "Performing a full updater resync"
 	echo ""
 fi
+
+echo "Downloading MiSTer-devel updates and main branches"
+echo ""
+declare -A CORE_DEFAULT_BRANCHES
+API_PAGE=1
+#API_RESPONSE=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sSLf "${MISTER_DEVEL_REPOS_URL}?per_page=100&page=${API_PAGE}" | grep -oE '("svn_url": "[^"]*)|("updated_at": "[^"]*)' | sed 's/"svn_url": "//; s/"updated_at": "//')
+API_RESPONSE=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sSLf "${MISTER_DEVEL_REPOS_URL}?per_page=100&page=${API_PAGE}" | grep -oE '("svn_url": "[^"]*)|("updated_at": "[^"]*)|("default_branch": "[^"]*)' | sed 's/"svn_url": "//; s/"updated_at": "//; s/"default_branch": "//')
+
+until [ "${API_RESPONSE}" == "" ]; do
+	for API_RESPONSE_LINE in $API_RESPONSE; do
+		if [[ "${API_RESPONSE_LINE}" =~ [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2} ]]
+		then
+			REPO_UPDATE_DATETIME_UTC="${API_RESPONSE_LINE}"
+		elif [[ "${API_RESPONSE_LINE}" =~ https: ]]
+		then
+			REPO_NAME="${API_RESPONSE_LINE##*/}"
+			if [ "${MISTER_DEVEL_REPOS_URL}" != "" ] && [ "${INI_DATETIME_UTC}" == "${LAST_SUCCESSFUL_RUN_INI_DATETIME_UTC}" ] && [ "${UPDATER_VERSION}" == "${LAST_SUCCESSFUL_RUN_UPDATER_VERSION}" ]
+			then
+				if [[ "${LAST_SUCCESSFUL_RUN_DATETIME_UTC}" < "${REPO_UPDATE_DATETIME_UTC}" ]]
+				then
+					CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER="${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER} ${REPO_NAME}"
+				fi
+			fi
+		else
+			REPO_DEFAULT_BRANCH="${API_RESPONSE_LINE}"
+			CORE_DEFAULT_BRANCHES["${REPO_NAME}"]="${REPO_DEFAULT_BRANCH}"
+		fi
+	done
+	API_PAGE=$((API_PAGE+1))
+	#API_RESPONSE=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sSLf "${MISTER_DEVEL_REPOS_URL}?per_page=100&page=${API_PAGE}" | grep -oE '("svn_url": "[^"]*)|("updated_at": "[^"]*)' | sed 's/"svn_url": "//; s/"updated_at": "//')
+	API_RESPONSE=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sSLf "${MISTER_DEVEL_REPOS_URL}?per_page=100&page=${API_PAGE}" | grep -oE '("svn_url": "[^"]*)|("updated_at": "[^"]*)|("default_branch": "[^"]*)' | sed 's/"svn_url": "//; s/"updated_at": "//; s/"default_branch": "//')
+done
+if [ "${MISTER_DEVEL_REPOS_URL}" != "" ] && [ "${INI_DATETIME_UTC}" == "${LAST_SUCCESSFUL_RUN_INI_DATETIME_UTC}" ] && [ "${UPDATER_VERSION}" == "${LAST_SUCCESSFUL_RUN_UPDATER_VERSION}" ]
+then
+	if [ "${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER}" != "" ]
+	then
+		CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER=$(echo "${CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER}" | cut -c2- )
+	else
+		CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER="ZZZZZZZZZ"
+	fi
+fi
+
 if [ "$CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER" != "" ]
 then
 	CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER_REGEX="([\/_-]$( echo "$CORE_CATEGORIES_LAST_SUCCESSFUL_RUN_FILTER" | sed 's/[ 	]\{1,\}/)|([\/_-]/g' ))"
@@ -523,7 +540,8 @@ function checkCoreURL {
 	# else
 	# 	RELEASES_URL=https://github.com$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "$CORE_URL" | grep -oi '/MiSTer-devel/[a-zA-Z0-9./_-]*/tree/[a-zA-Z0-9./_-]*/releases' | head -n1)
 	# fi
-	BRANCH_NAME=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "${CORE_URL}/branches" | grep "branch-name" | head -n1 | sed 's/.*>\(.*\)<.*/\1/')
+	#BRANCH_NAME=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "${CORE_URL}/branches" | grep "branch-name" | head -n1 | sed 's/.*>\(.*\)<.*/\1/')
+	BRANCH_NAME=${CORE_DEFAULT_BRANCHES["${CORE_URL##*/}"]}
 	case "$CORE_URL" in
 		*SD-Installer*)
 			RELEASES_URL="$CORE_URL"
@@ -532,6 +550,7 @@ function checkCoreURL {
 			RELEASES_URL="${CORE_URL}/file-list/${BRANCH_NAME}/releases"
 			;;
 	esac
+	
 	RELEASES_HTML=""
 	RELEASES_HTML=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sSLf "${RELEASES_URL}")
 	RELEASE_URLS=$(echo ${RELEASES_HTML} | grep -oE '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]{8}[a-zA-Z]?(\.rbf|\.rar|\.zip)?')
