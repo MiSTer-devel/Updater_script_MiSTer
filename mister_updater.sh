@@ -20,6 +20,7 @@
 
 
 
+# Version 4.0.11 - 2021-02-21 - Removied curl and folder creation errors (thanks to theypsilon and cdewit).
 # Version 4.0.10 - 2020-12-07 - Optimised repositories main branch detection through a single API call.
 # Version 4.0.9 - 2020-06-25 - Download timeout increased from 120 seconds to 180.
 # Version 4.0.8 - 2020-06-24 - Updated checkAdditionalRepository in order to reflect a change in GitHub HTML code.
@@ -211,7 +212,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.10"
+UPDATER_VERSION="4.0.11"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
