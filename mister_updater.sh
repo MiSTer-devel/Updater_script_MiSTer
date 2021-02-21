@@ -798,15 +798,23 @@ function checkCoreURL {
 							"Minimig")
 								CORE_INTERNAL_NAME="Amiga"
 								;;
-							"Apple-I"|"C64"|"PDP1"|"NeoGeo"|"AY-3-8500")
+							"Apple-I"|"C64"|"PDP1"|"NeoGeo"|"AY-3-8500"|"EDSAC"|"Galaksija")
 								CORE_INTERNAL_NAME="${BASE_FILE_NAME}"
 								;;
 							"SharpMZ")
 								CORE_INTERNAL_NAME="SHARP MZ SERIES"
 								;;
+							"Amstrad-PCW")
+								CORE_INTERNAL_NAME="Amstrad PCW"
+								;;
 							*)
 								CORE_SOURCE_URL="$(echo "https://github.com$MAX_RELEASE_URL" | sed 's/releases.*//g')${BASE_FILE_NAME}.sv"
-								CORE_INTERNAL_NAME="$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "${CORE_SOURCE_URL}?raw=true" | awk '/CONF_STR[^=]*=/,/;/' | grep -oE -m1 '".*?;' | sed 's/[";]//g')"
+								CORE_INTERNAL_NAME="$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "${CORE_SOURCE_URL}?raw=true" 2> /tmp/core_internal_name_error | awk '/CONF_STR[^=]*=/,/;/' | grep -oE -m1 '"[^;]*?;' | sed 's/[";]//g')"
+								if [ "$CORE_INTERNAL_NAME" == "" ]
+								then
+									cat /tmp/core_internal_name_error
+									echo "Couldn't create directory for ${BASE_FILE_NAME}"
+								fi
 								;;
 						esac
 						if [ "$CORE_INTERNAL_NAME" != "" ]
