@@ -20,6 +20,7 @@
 
 
 
+# Version 4.0.13 - 2021-03-22 - Added XOW scripts to ADDITIONAL_REPOSITORIES; added main branch detection to checkAdditionalRepository.
 # Version 4.0.12 - 2021-03-05 - Updated checkAdditionalRepository in order to reflect a change in GitHub HTML code.
 # Version 4.0.11 - 2021-02-21 - Removied curl and folder creation errors (thanks to theypsilon and cdewit).
 # Version 4.0.10 - 2020-12-07 - Optimised repositories main branch detection through a single API call.
@@ -195,6 +196,7 @@ ADDITIONAL_REPOSITORIES=(
 #	"https://github.com/MiSTer-devel/Fonts_MiSTer|pf|$BASE_PATH/font"
 	"https://github.com/MiSTer-devel/NeoGeo_MiSTer/tree/master/releases|xml|@GAMES_SUBDIR@/NeoGeo"
 	"https://github.com/MiSTer-devel/Scripts_MiSTer/tree/master/other_authors|sh inc|$BASE_PATH/$SCRIPTS_PATH"
+	"https://github.com/MiSTer-devel/xow_MiSTer|sh|$BASE_PATH/$SCRIPTS_PATH"
 )
 MISTER_DEVEL_REPOS_URL="https://api.github.com/orgs/mister-devel/repos"
 FILTERS_URL="https://github.com/MiSTer-devel/Filters_MiSTer"
@@ -213,7 +215,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.12"
+UPDATER_VERSION="4.0.13"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
@@ -890,15 +892,26 @@ function checkAdditionalRepository {
 			mkdir -p "$CURRENT_DIR"
 		fi
 		[ "${SSH_CLIENT}" != "" ] && [[ $ADDITIONAL_FILES_URL == http* ]] && echo "URL: $ADDITIONAL_FILES_URL"
-		#if echo "$ADDITIONAL_FILES_URL" | grep -q "\/tree\/master\/"
-		if [[ "${ADDITIONAL_FILES_URL}" =~ /tree/master/ ]]
-		then
-			ADDITIONAL_FILES_URL=$(echo "$ADDITIONAL_FILES_URL" | sed 's/\/tree\/master\//\/file-list\/master\//g')
-		else
-			ADDITIONAL_FILES_URL="$ADDITIONAL_FILES_URL/file-list/master"
-		fi
 		if [ "${RELEASES_HTML}" == "" ]
 		then
+			if ! [[ "${ADDITIONAL_FILES_URL}" =~ /file-list/ ]]
+			then
+				if [[ "${ADDITIONAL_FILES_URL}" =~ /tree/master/ ]]
+				then
+					ADDITIONAL_FILES_URL=$(echo "$ADDITIONAL_FILES_URL" | sed 's/\/tree\/master\//\/file-list\/master\//g')
+				elif [[ "${ADDITIONAL_FILES_URL}" =~ /tree/main/ ]]
+				then
+					ADDITIONAL_FILES_URL=$(echo "$ADDITIONAL_FILES_URL" | sed 's/\/tree\/main\//\/file-list\/main\//g')
+				else
+					if [[ "${ADDITIONAL_FILES_URL}" == https://github.com/MiSTer-devel/* ]]
+					then
+						BRANCH_NAME=${CORE_DEFAULT_BRANCHES["${ADDITIONAL_FILES_URL##*/}"]}
+					else
+						BRANCH_NAME=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "${ADDITIONAL_FILES_URL}/branches" | grep "branch-name" | head -n1 | sed 's/.*>\(.*\)<.*/\1/')
+					fi
+					ADDITIONAL_FILES_URL="${ADDITIONAL_FILES_URL}/file-list/${BRANCH_NAME}"
+				fi
+			fi
 			CONTENT_HTML=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "$ADDITIONAL_FILES_URL")
 		else
 			CONTENT_HTML="${RELEASES_HTML}"
