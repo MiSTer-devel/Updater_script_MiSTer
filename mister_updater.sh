@@ -20,6 +20,7 @@
 
 
 
+# Version 4.0.14 - 2021-03-23 - Fixed a bug in checkAdditionalRepository.
 # Version 4.0.13 - 2021-03-22 - Added XOW scripts to ADDITIONAL_REPOSITORIES; added main branch detection to checkAdditionalRepository.
 # Version 4.0.12 - 2021-03-05 - Updated checkAdditionalRepository in order to reflect a change in GitHub HTML code.
 # Version 4.0.11 - 2021-02-21 - Removied curl and folder creation errors (thanks to theypsilon and cdewit).
@@ -215,7 +216,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.13"
+UPDATER_VERSION="4.0.14"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
@@ -931,7 +932,7 @@ function checkAdditionalRepository {
 		#CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g' | sed 's/<\/td>/\n/g')
 		#CONTENT_TDS=$(echo "$CONTENT_TDS" | awk '/class="content">/,/<\/td>/' | tr -d '\n' | sed 's/ \{1,\}/+/g; s/<\/td>/\n/g')
 		#ADDITIONAL_FILE_URLS=$(echo "$CONTENT_HTML" | grep -oE 'js-navigation-open link-gray-dark[^>]*' | sed 's/.*href="//; s/"//')
-		ADDITIONAL_FILE_URLS=$(echo "$CONTENT_HTML" | grep -oE 'js-navigation-open[^>]*' | sed 's/.*href="//; s/"//')
+		ADDITIONAL_FILE_URLS=$(echo "$CONTENT_HTML" | grep -oE 'js-navigation-open Link--primary[^>]*' | sed 's/.*href="//; s/"//')
 		#ADDITIONAL_FILE_URLS=$(echo "$CONTENT_TDS" | grep -oE 'js-navigation-open link-gray-dark[^>]*')
 		CONTENT_INDEX=0
 		#for CONTENT_TD in $CONTENT_TDS; do
