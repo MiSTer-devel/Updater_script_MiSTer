@@ -20,6 +20,7 @@
 
 
 
+# Version 4.0.15 - 2021-04-20 - Four changes to ADDITIONAL_REPOSITORIES; Fix improper filters extension, fix improper gameboy palettes extension, add NES palettes, and add super gameboy borders.
 # Version 4.0.14 - 2021-03-23 - Fixed a bug in checkAdditionalRepository.
 # Version 4.0.13 - 2021-03-22 - Added XOW scripts to ADDITIONAL_REPOSITORIES; added main branch detection to checkAdditionalRepository.
 # Version 4.0.12 - 2021-03-05 - Updated checkAdditionalRepository in order to reflect a change in GitHub HTML code.
@@ -189,8 +190,10 @@ OLD_SCRIPTS_PATH="#Scripts"
 WORK_PATH="/media/fat/$SCRIPTS_PATH/.mister_updater"
 #Comment (or uncomment) next lines if you don't want (or want) to update/download from additional repositories (i.e. Scaler filters and Gameboy palettes) each time
 ADDITIONAL_REPOSITORIES=(
-#	"https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|txt|$BASE_PATH/Filters"
-	"https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|gbp|@GAMES_SUBDIR@/GameBoy"
+	"https://github.com/MiSTer-devel/Filters_MiSTer/tree/master/Filters|zip|$BASE_PATH/Filters"
+	"https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/palettes|zip|@GAMES_SUBDIR@/GameBoy"
+	"https://github.com/MiSTer-devel/Gameboy_MiSTer/tree/master/borders|zip|@GAMES_SUBDIR@/GameBoy"
+	"https://github.com/MiSTer-devel/NES_MiSTer/tree/master/Palettes|zip|@GAMES_SUBDIR@/NES"
 	"https://github.com/MiSTer-devel/Scripts_MiSTer|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 #	"https://github.com/bbond007/MiSTer_MidiLink/tree/master/INSTALL|sh inc|$BASE_PATH/$SCRIPTS_PATH"
 	"https://github.com/MiSTer-devel/MidiLink_MiSTer/tree/master/INSTALL|sh inc|$BASE_PATH/$SCRIPTS_PATH"
@@ -216,7 +219,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.14"
+UPDATER_VERSION="4.0.15"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
