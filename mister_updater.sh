@@ -19,7 +19,7 @@
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
 
-
+# Version 4.0.15 - 2021-06-14 - Handle HTML codes for square brackets and ampersand
 # Version 4.0.14 - 2021-03-23 - Fixed a bug in checkAdditionalRepository.
 # Version 4.0.13 - 2021-03-22 - Added XOW scripts to ADDITIONAL_REPOSITORIES; added main branch detection to checkAdditionalRepository.
 # Version 4.0.12 - 2021-03-05 - Updated checkAdditionalRepository in order to reflect a change in GitHub HTML code.
@@ -216,7 +216,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.14"
+UPDATER_VERSION="4.0.15"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
