@@ -945,7 +945,7 @@ function checkAdditionalRepository {
 			then
 				#ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g; s/&#39;/'\''/g')
 				#ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g')
-				ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g; s/%20/ /g; s/%2C/,/g; s/%5B/[/g; s/%5D/]/g; s/%26/\&/g'; s/   */ /g)
+				ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g; s/%20/ /g; s/%2C/,/g; s/%5B/[/g; s/%5D/]/g; s/%26/\&/g')
 				ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_FILE_DATETIMES[$CONTENT_INDEX]}
 				if [ -f "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" ]
 				then
