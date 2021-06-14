@@ -947,9 +947,9 @@ function checkAdditionalRepository {
 				#ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g' | sed 's/%20/ /g')
 				ADDITIONAL_FILE_NAME=$(echo "$ADDITIONAL_FILE_URL" | sed 's/.*\///g; s/%20/ /g; s/%2C/,/g; s/%5B/[/g; s/%5D/]/g; s/%26/\&/g')
 				ADDITIONAL_ONLINE_FILE_DATETIME=${ADDITIONAL_FILE_DATETIMES[$CONTENT_INDEX]}
-				if [ -f "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" ]
+				if [ -f "$CURRENT_DIR/${ADDITIONAL_FILE_NAME}" ]
 				then
-					ADDITIONAL_LOCAL_FILE_DATETIME=$(date -d "$(stat -c %y "$CURRENT_DIR/$ADDITIONAL_FILE_NAME" 2>/dev/null)" -u +"%Y-%m-%dT%H:%M:%SZ")
+					ADDITIONAL_LOCAL_FILE_DATETIME=$(date -d "$(stat -c %y "$CURRENT_DIR/${ADDITIONAL_FILE_NAME}" 2>/dev/null)" -u +"%Y-%m-%dT%H:%M:%SZ")
 				else
 					ADDITIONAL_LOCAL_FILE_DATETIME=""
 				fi
@@ -963,10 +963,10 @@ function checkAdditionalRepository {
 				
 				if [ "$ADDITIONAL_LOCAL_FILE_DATETIME" == "" ] || [[ "$ADDITIONAL_ONLINE_FILE_DATETIME" > "$ADDITIONAL_LOCAL_FILE_DATETIME" ]]
 				then
-					echo "Downloading $ADDITIONAL_FILE_NAME"
+					echo "Downloading ${ADDITIONAL_FILE_NAME}"
 					[ "${SSH_CLIENT}" != "" ] && echo "URL: https://github.com$ADDITIONAL_FILE_URL?raw=true"
 					mv "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}" "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
-					if curl $CURL_RETRY $SSL_SECURITY_OPTION $([ "${PARALLEL_UPDATE}" == "true" ] && echo "-sS") -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/$ADDITIONAL_FILE_NAME"
+					if curl $CURL_RETRY $SSL_SECURITY_OPTION $([ "${PARALLEL_UPDATE}" == "true" ] && echo "-sS") -L "https://github.com$ADDITIONAL_FILE_URL?raw=true" -o "$CURRENT_DIR/${ADDITIONAL_FILE_NAME}"
 					then
 						rm "${CURRENT_DIR}/${ADDITIONAL_FILE_NAME}.${TO_BE_DELETED_EXTENSION}" > /dev/null 2>&1
 						if [[ "${ADDITIONAL_FILE_NAME}" =~ \.mra ]]
