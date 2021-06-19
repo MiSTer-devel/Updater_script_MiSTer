@@ -386,6 +386,10 @@ then
 	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/mra_backup/"*.mra "${CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
 	find "${CORE_CATEGORY_PATHS["arcade-cores"]}" -maxdepth 1 -type f -name '*.mra' -size +165000c -size -166000c -delete
 	rm "${CORE_CATEGORY_PATHS["arcade-cores"]}/Arkanoid (unl.lives%2C slower).mra" > /dev/null 2>&1
+	find "${CORE_CATEGORY_PATHS["arcade-cores"]}" -maxdepth 1 -type f -name '*%5B*.mra' -delete
+	find "${CORE_CATEGORY_PATHS["arcade-cores"]}" -maxdepth 1 -type f -name '*%5D*.mra' -delete
+	find "${CORE_CATEGORY_PATHS["arcade-cores"]}" -maxdepth 1 -type f -name '*%26*.mra' -delete
+	find "${CORE_CATEGORY_PATHS["arcade-cores"]}" -maxdepth 1 -type f -name '*  *.mra' -delete
 elif [ "${MAME_ARCADE_ROMS}" == "false" ]
 then
 	mv "${CORE_CATEGORY_PATHS["arcade-cores"]}/cores/"*.rbf "${CORE_CATEGORY_PATHS["arcade-cores"]}/" > /dev/null 2>&1
