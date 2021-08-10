@@ -816,6 +816,9 @@ function checkCoreURL {
 							"Amstrad-PCW")
 								CORE_INTERNAL_NAME="Amstrad PCW"
 								;;
+							"Intellivision")
+								CORE_INTERNAL_NAME="Intellivision"
+								;;
 							*)
 								CORE_SOURCE_URL="$(echo "https://github.com$MAX_RELEASE_URL" | sed 's/releases.*//g')${BASE_FILE_NAME}.sv"
 								CORE_INTERNAL_NAME="$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "${CORE_SOURCE_URL}?raw=true" 2> /tmp/core_internal_name_error | awk '/CONF_STR[^=]*=/,/;/' | grep -oE -m1 '"[^;]*?;' | sed 's/[";]//g')"
