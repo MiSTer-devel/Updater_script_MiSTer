@@ -808,7 +808,7 @@ function checkCoreURL {
 							"Minimig")
 								CORE_INTERNAL_NAME="Amiga"
 								;;
-							"Apple-I"|"C64"|"PDP1"|"NeoGeo"|"AY-3-8500"|"EDSAC"|"Galaksija")
+							"Apple-I"|"C64"|"PDP1"|"NeoGeo"|"AY-3-8500"|"EDSAC"|"Galaksija"|"Intellivision")
 								CORE_INTERNAL_NAME="${BASE_FILE_NAME}"
 								;;
 							"SharpMZ")
@@ -816,9 +816,6 @@ function checkCoreURL {
 								;;
 							"Amstrad-PCW")
 								CORE_INTERNAL_NAME="Amstrad PCW"
-								;;
-							"Intellivision")
-								CORE_INTERNAL_NAME="Intellivision"
 								;;
 							*)
 								CORE_SOURCE_URL="$(echo "https://github.com$MAX_RELEASE_URL" | sed 's/releases.*//g')${BASE_FILE_NAME}.sv"
