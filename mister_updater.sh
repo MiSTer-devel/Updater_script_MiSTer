@@ -19,6 +19,7 @@
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
 
+# Version 4.0.16 - 2021-08-10 - Fixes Intellivision game folder creation.
 # Version 4.0.15 - 2021-06-14 - Handle HTML codes for square brackets and ampersand
 # Version 4.0.14 - 2021-03-23 - Fixed a bug in checkAdditionalRepository.
 # Version 4.0.13 - 2021-03-22 - Added XOW scripts to ADDITIONAL_REPOSITORIES; added main branch detection to checkAdditionalRepository.
@@ -216,7 +217,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.15"
+UPDATER_VERSION="4.0.16"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
@@ -807,7 +808,7 @@ function checkCoreURL {
 							"Minimig")
 								CORE_INTERNAL_NAME="Amiga"
 								;;
-							"Apple-I"|"C64"|"PDP1"|"NeoGeo"|"AY-3-8500"|"EDSAC"|"Galaksija")
+							"Apple-I"|"C64"|"PDP1"|"NeoGeo"|"AY-3-8500"|"EDSAC"|"Galaksija"|"Intellivision")
 								CORE_INTERNAL_NAME="${BASE_FILE_NAME}"
 								;;
 							"SharpMZ")
