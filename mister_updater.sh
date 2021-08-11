@@ -19,7 +19,7 @@
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
 
-# Version 4.0.16 - 2021-08-10 - Fixes Intellivision game folder creation.
+# Version 4.0.16 - 2021-08-10 - Fixes Intellivision game folder creation (thanks to theypsilon).
 # Version 4.0.15 - 2021-06-14 - Handle HTML codes for square brackets and ampersand
 # Version 4.0.14 - 2021-03-23 - Fixed a bug in checkAdditionalRepository.
 # Version 4.0.13 - 2021-03-22 - Added XOW scripts to ADDITIONAL_REPOSITORIES; added main branch detection to checkAdditionalRepository.
