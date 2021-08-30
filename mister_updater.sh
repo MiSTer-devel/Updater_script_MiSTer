@@ -19,6 +19,7 @@
 # https://github.com/MiSTer-devel/Updater_script_MiSTer
 
 
+# Version 4.0.17 - 2021-08-30 - Support for the new 7z Linux update archive format (thanks to MiSTer Addons for the help with testing).
 # Version 4.0.16 - 2021-08-10 - Fixes Intellivision game folder creation (thanks to theypsilon).
 # Version 4.0.15 - 2021-06-14 - Handle HTML codes for square brackets and ampersand
 # Version 4.0.14 - 2021-03-23 - Fixed a bug in checkAdditionalRepository.
@@ -205,7 +206,8 @@ FILTERS_URL="https://github.com/MiSTer-devel/Filters_MiSTer"
 MRA_ALT_URL="https://github.com/MiSTer-devel/MRA-Alternatives_MiSTer"
 CHEATS_URL="https://gamehacking.org/mister/"
 CHEAT_MAPPINGS="fds:NES gb:GameBoy gbc:GameBoy gen:Genesis gg:SMS nes:NES pce:TGFX16 sms:SMS snes:SNES gba:GBA pcd:TGFX16"
-UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
+#UNRAR_DEBS_URL="http://http.us.debian.org/debian/pool/non-free/u/unrar-nonfree"
+SEVENZIP_URL="https://github.com/MiSTer-devel/SD-Installer-Win64_MiSTer/raw/master/7za.gz"
 #Uncomment this if you want the script to sync the system date and time with a NTP server
 #NTP_SERVER="0.pool.ntp.org"
 AUTOREBOOT="true"
@@ -217,7 +219,7 @@ TO_BE_DELETED_EXTENSION="to_be_deleted"
 
 #========= CODE STARTS HERE =========
 
-UPDATER_VERSION="4.0.16"
+UPDATER_VERSION="4.0.17"
 echo "MiSTer Updater version ${UPDATER_VERSION}"
 echo ""
 
@@ -563,7 +565,8 @@ function checkCoreURL {
 	
 	RELEASES_HTML=""
 	RELEASES_HTML=$(curl ${CURL_RETRY} ${SSL_SECURITY_OPTION} -sSLf "${RELEASES_URL}")
-	RELEASE_URLS=$(echo ${RELEASES_HTML} | grep -oE '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]{8}[a-zA-Z]?(\.rbf|\.rar|\.zip)?')
+	#RELEASE_URLS=$(echo ${RELEASES_HTML} | grep -oE '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]{8}[a-zA-Z]?(\.rbf|\.rar|\.zip)?')
+	RELEASE_URLS=$(echo ${RELEASES_HTML} | grep -oE '/MiSTer-devel/[a-zA-Z0-9./_-]*_[0-9]{8}[a-zA-Z]?(\.rbf|\.7z|\.zip)?')
 	
 	CORE_HAS_MRA="false"
 	#if  [ "${CORE_CATEGORY}" == "arcade-cores" ] && [ "${MAME_ARCADE_ROMS}" == "true" ] && { echo "${RELEASES_HTML}" | grep -qE '/MiSTer-devel/[a-zA-Z0-9./_%&#;!()-]*\.mra'; }
@@ -671,7 +674,8 @@ function checkCoreURL {
 			if [ -f "$CURRENT_FILE" ]
 			then
 				#if echo "$CURRENT_FILE" | grep -q "$BASE_FILE_NAME\_[0-9]\{8\}[a-zA-Z]\?\(\.rbf\|\.rar\|\.zip\)\?$"
-				if [[ "${CURRENT_FILE}" =~ ${BASE_FILE_NAME}_[0-9]{8}[a-zA-Z]?(\.rbf|\.rar|\.zip)?$ ]]
+				#if [[ "${CURRENT_FILE}" =~ ${BASE_FILE_NAME}_[0-9]{8}[a-zA-Z]?(\.rbf|\.rar|\.zip)?$ ]]
+				if [[ "${CURRENT_FILE}" =~ ${BASE_FILE_NAME}_[0-9]{8}[a-zA-Z]?(\.rbf|\.7z|\.zip)?$ ]]
 				then
 					CURRENT_LOCAL_VERSION=$(echo "$CURRENT_FILE" | grep -o '[0-9]\{8\}[a-zA-Z]\?')
 					if [ "$GOOD_CORE_VERSION" != "" ]
@@ -1244,42 +1248,52 @@ sync
 if [ "$SD_INSTALLER_PATH" != "" ]
 then
 	echo "Linux system must be updated"
-	if [ ! -f "/media/fat/linux/unrar-nonfree" ]
+#	if [ ! -f "/media/fat/linux/unrar-nonfree" ]
+#	then
+#		UNRAR_DEB_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9%./_+-]*_armhf\.deb\"' | sed 's/\"//g')
+#		MAX_VERSION=""
+#		MAX_RELEASE_URL=""
+#		for RELEASE_URL in $UNRAR_DEB_URLS; do
+#			CURRENT_VERSION=$(echo "$RELEASE_URL" | grep -o '_[a-zA-Z0-9.+-]*_' | sed 's/_//g')
+#			if [[ "$CURRENT_VERSION" > "$MAX_VERSION" ]]
+#			then
+#				MAX_VERSION=$CURRENT_VERSION
+#				MAX_RELEASE_URL=$RELEASE_URL
+#			fi
+#		done
+#		echo "Downloading $UNRAR_DEBS_URL/$MAX_RELEASE_URL"
+#		curl $SSL_SECURITY_OPTION -L "$UNRAR_DEBS_URL/$MAX_RELEASE_URL" -o "$TEMP_PATH/$MAX_RELEASE_URL"
+#		echo "Extracting unrar-nonfree"
+#		ORIGINAL_DIR=$(pwd)
+#		cd "$TEMP_PATH"
+#		rm data.tar.xz > /dev/null 2>&1
+#		ar -x "$TEMP_PATH/$MAX_RELEASE_URL" data.tar.xz
+#		cd "$ORIGINAL_DIR"
+#		rm "$TEMP_PATH/$MAX_RELEASE_URL"
+#		tar -xJf "$TEMP_PATH/data.tar.xz" --strip-components=3 -C "/media/fat/linux" ./usr/bin/unrar-nonfree
+#		rm "$TEMP_PATH/data.tar.xz" > /dev/null 2>&1
+#	fi
+	if [ ! -f "/media/fat/linux/7za" ]
 	then
-		UNRAR_DEB_URLS=$(curl $CURL_RETRY $SSL_SECURITY_OPTION -sSLf "$UNRAR_DEBS_URL" | grep -o '\"unrar[a-zA-Z0-9%./_+-]*_armhf\.deb\"' | sed 's/\"//g')
-		MAX_VERSION=""
-		MAX_RELEASE_URL=""
-		for RELEASE_URL in $UNRAR_DEB_URLS; do
-			CURRENT_VERSION=$(echo "$RELEASE_URL" | grep -o '_[a-zA-Z0-9.+-]*_' | sed 's/_//g')
-			if [[ "$CURRENT_VERSION" > "$MAX_VERSION" ]]
-			then
-				MAX_VERSION=$CURRENT_VERSION
-				MAX_RELEASE_URL=$RELEASE_URL
-			fi
-		done
-		echo "Downloading $UNRAR_DEBS_URL/$MAX_RELEASE_URL"
-		curl $SSL_SECURITY_OPTION -L "$UNRAR_DEBS_URL/$MAX_RELEASE_URL" -o "$TEMP_PATH/$MAX_RELEASE_URL"
-		echo "Extracting unrar-nonfree"
-		ORIGINAL_DIR=$(pwd)
-		cd "$TEMP_PATH"
-		rm data.tar.xz > /dev/null 2>&1
-		ar -x "$TEMP_PATH/$MAX_RELEASE_URL" data.tar.xz
-		cd "$ORIGINAL_DIR"
-		rm "$TEMP_PATH/$MAX_RELEASE_URL"
-		tar -xJf "$TEMP_PATH/data.tar.xz" --strip-components=3 -C "/media/fat/linux" ./usr/bin/unrar-nonfree
-		rm "$TEMP_PATH/data.tar.xz" > /dev/null 2>&1
+		echo "Downloading ${SEVENZIP_URL}"
+		curl $SSL_SECURITY_OPTION -L "${SEVENZIP_URL}" -o "/media/fat/linux/7za.gz"
+		echo "Extracting 7za"
+		gunzip "/media/fat/linux/7za.gz"
 	fi
-	if [ -f "/media/fat/linux/unrar-nonfree" ] && [ -f "$SD_INSTALLER_PATH" ]
+	#if [ -f "/media/fat/linux/unrar-nonfree" ] && [ -f "$SD_INSTALLER_PATH" ]
+	if [ -f "/media/fat/linux/7za" ] && [ -f "$SD_INSTALLER_PATH" ]
 	then
 		sync
-		if /media/fat/linux/unrar-nonfree t "$SD_INSTALLER_PATH"
+		#if /media/fat/linux/unrar-nonfree t "$SD_INSTALLER_PATH"
+		if /media/fat/linux/7za t "$SD_INSTALLER_PATH"
 		then
 			if [ -d /media/fat/linux.update ]
 			then
 				rm -R "/media/fat/linux.update" > /dev/null 2>&1
 			fi
 			mkdir "/media/fat/linux.update"
-			if /media/fat/linux/unrar-nonfree x -y "$SD_INSTALLER_PATH" files/linux/* /media/fat/linux.update
+			#if /media/fat/linux/unrar-nonfree x -y "$SD_INSTALLER_PATH" files/linux/* /media/fat/linux.update
+			if /media/fat/linux/7za x -y "$SD_INSTALLER_PATH" files/linux/* -o"/media/fat/linux.update"
 			then
 				echo ""
 				echo "======================================================================================"
