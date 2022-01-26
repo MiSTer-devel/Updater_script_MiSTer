@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -88,12 +88,12 @@ esac
 echo "Downloading and executing"
 echo "${SCRIPT_URL/*\//}"
 echo ""
-curl \
-	${CURL_RETRY} \
-	${SSL_SECURITY_OPTION} \
-	--fail \
-	--location \
-	"${SCRIPT_URL}?raw=true" | \
-	bash -
+SCRIPT="$(curl -s ${CURL_RETRY} ${SSL_SECURITY_OPTION} --fail --location "${SCRIPT_URL}?raw=true")"
+if [[ "$(uname -r)" != *"socfpga"* ]] && [[ "$(uname -n)" != "MiSTer" ]]; then
+	SCRIPT="${SCRIPT//\/media\/fat/\.\.}"
+	SCRIPT="${SCRIPT//UPDATE_LINUX=\"true\"/UPDATE_LINUX=\"false\"}"
+	SCRIPT="${SCRIPT//AUTOREBOOT=\"true\"/AUTOREBOOT=\"false\"}"
+fi
+bash - <<< "${SCRIPT}"
 
 exit 0
