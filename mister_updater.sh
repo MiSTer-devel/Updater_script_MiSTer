@@ -17,7 +17,7 @@
 # You can download the latest version of this tool from:
 # https://github.com/MiSTer-devel/Downloader_MiSTer
 
-set -euo pipefail
+set -eo pipefail
 
 echo "WARNING: The version of Update.sh you are using is now deprecated!"
 echo "Please update to the latest updater located at the link below."
