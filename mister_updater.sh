@@ -26,6 +26,21 @@ sleep 1
 echo "The script will run normally now:"
 sleep 5
 
+if (( $(date +%Y) < 2000 )) ; then
+    NTP_SERVER="0.pool.ntp.org"
+    echo "Syncing date and time with $NTP_SERVER"
+    echo
+    if ntpdate -s -b -u $NTP_SERVER ; then
+        echo "Date and time is:"
+        echo "$(date)"
+        echo
+    elif [[ "${CURL_SSL:-}" != "--insecure" ]] ; then
+        echo "Unable to sync."
+        echo "Please, try again later."
+        exit 1
+    fi
+fi
+
 download_file() {
     local DOWNLOAD_PATH="${1}"
     local DOWNLOAD_URL="${2}"
